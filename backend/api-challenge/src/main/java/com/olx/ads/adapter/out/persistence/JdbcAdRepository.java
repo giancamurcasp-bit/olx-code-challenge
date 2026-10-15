@@ -56,14 +56,51 @@ public class JdbcAdRepository implements AdRepository {
         .optional();
   }
 
+  /**
+   * One statement, so the claim is atomic without an explicit transaction. {@code SKIP LOCKED} lets
+   * concurrent workers claim different ads instead of waiting on each other.
+   */
   @Override
   public List<Ad> claimDue(int limit, Instant now, Duration lease) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return jdbc.sql(
+            """
+            UPDATE ads SET next_attempt_at = :leaseUntil
+            WHERE id IN (SELECT id FROM ads
+                         WHERE status = 'pending' AND next_attempt_at <= :now
+                         ORDER BY next_attempt_at
+                         LIMIT :limit
+                         FOR UPDATE SKIP LOCKED)
+            RETURNING *
+            """)
+        .param("leaseUntil", toTimestamp(now.plus(lease)))
+        .param("now", toTimestamp(now))
+        .param("limit", limit)
+        .query(JdbcAdRepository::toAd)
+        .list();
   }
 
   @Override
   public boolean update(Ad ad) {
-    throw new UnsupportedOperationException("not implemented yet");
+    int updated =
+        jdbc.sql(
+                """
+                UPDATE ads SET status = :status,
+                               rejection_reason = :rejectionReason,
+                               moderation_attempts = :attempts,
+                               next_attempt_at = :nextAttemptAt,
+                               last_moderation_error = :lastError,
+                               updated_at = :updatedAt
+                WHERE id = :id AND status = 'pending'
+                """)
+            .param("status", ad.getStatus().value())
+            .param("rejectionReason", ad.getRejectionReason())
+            .param("attempts", ad.getModerationAttempts())
+            .param("nextAttemptAt", toTimestamp(ad.getNextAttemptAt()))
+            .param("lastError", ad.getLastModerationError())
+            .param("updatedAt", toTimestamp(ad.getUpdatedAt()))
+            .param("id", ad.getId())
+            .update();
+    return updated == 1;
   }
 
   private static Ad toAd(ResultSet row, int rowNum) throws SQLException {
