@@ -120,7 +120,7 @@ curl -i localhost:8080/ads -H 'Content-Type: application/json' -H "Idempotency-K
 
 Responses:
 
-- `201 Created`: ad stored with `"status": "pending"`; `Location` header points to `/ads/{id}`. On a replayed key: the original ad, with `Idempotent-Replayed: true`.
+- `201 Created`: ad stored with `"status": "pending"`; `Location` header points to `/ads/{id}`. Moderation runs in the background, usually within seconds: poll the `Location` URL until `status` is no longer `pending` (`DECISIONS.md` 1). On a replayed key: the original ad, with `Idempotent-Replayed: true`.
 - `400 Bad Request`: validation errors (`application/problem+json`), or a missing or malformed `Idempotency-Key`.
 - `422 Unprocessable Content`: the `Idempotency-Key` was already used for a different ad.
 

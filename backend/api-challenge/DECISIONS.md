@@ -16,7 +16,11 @@ Technical decisions, discarded alternatives and how ambiguous requirements were 
 - **Low, predictable latency:** creating an ad costs one insert, regardless of the dependency.
 - **Availability decoupling:** ad creation keeps working while moderation is slow, down or throttling us, and moderation catches up afterwards.
 
-**Trade-off:** the user doesn't get the moderation result in the response; the ad shows as `pending` until the worker processes it, and the client must check `GET /ads/{id}`. This is the usual "under review" experience in marketplaces. Evolution: notify the user (push, email or webhook) when the status changes.
+**Trade-off:** the user doesn't get the moderation result in the response; the ad shows as `pending` until the worker processes it. This is the usual "under review" experience in marketplaces.
+
+**How the client learns the result: polling.** The client polls the `Location` returned by `POST /ads` (`GET /ads/{id}`) until `status` leaves `pending`, usually within seconds. It needs no new endpoint or connection state. Its costs are wasted requests and a client-chosen interval, acceptable at this scale.
+- **Evolution: notify the seller** by push or email when the status changes, so the seller never waits on the screen and polling remains only for integrations. That means publishing an event on each status change, one of the triggers for a broker in 1.1.
+- **Discarded for now:** webhooks (need registered clients, signing and their own retries, and there are no clients or authentication, 4.1) and Server-Sent Events/WebSocket (long-lived connections across instances for a single status change).
 
 **Why the database as the queue:** no work is lost on restart, multiple instances can run safely, and "ad created" and "work enqueued" are atomic because they are the same row.
 
