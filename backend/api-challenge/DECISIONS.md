@@ -71,13 +71,16 @@ SQS fits moderation as a **job** (per-message retry, native DLQ and redrive). Ka
 | `500`, timeout, connection error | Retry with exponential backoff + jitter (cap ~5 min). Counts as an attempt |
 | `429` | Retry after `Retry-After`. Does **not** count as an attempt ("not now", not "failed") |
 | `400`, unparseable response | `moderation_failed` immediately: retrying can't fix it |
-| Max attempts reached (default 50) | `moderation_failed` with `retries_exhausted` |
+| Max attempts reached (default 15) | `moderation_failed` with `retries_exhausted` |
 
 ### 2.1 Why the retry cap
 
 Unbounded retries don't overload our server (outbound load is bounded by the rate limiter), but stuck ads would eat the rate-limit budget and starve new ads, and a payload that always triggers a `500` would be retried forever.
 
-The usual objection is that an outage exhausts every ad's attempts. Here, **while the circuit breaker is open the worker doesn't claim ads**, so attempts only count against a reachable dependency. 50 attempts with backoff capped at 5 min cover ~3–4 hours of failures, while a healthy ad failing 50 times at a 20% error rate is effectively impossible.
+The usual objection is that an outage exhausts every ad's attempts. Here, **while the circuit breaker is open the worker doesn't claim ads**, and `429`s don't count either, so attempts only count against a reachable dependency.
+
+**Why 15:** with backoff capped at 5 min, 15 attempts take ~40 minutes (~8.5 min of fast retries, then six at 5 min). A full outage doesn't spend them (the circuit is open), and random failures almost never add up: a healthy ad failing 15 times in a row is ~1 in 10¹⁰ at the normal 20% error rate, and ~1 in a million even in a partial outage at 40% that stays under the circuit-breaker threshold. What the cap really bounds is how long the seller waits for an ad that can never be moderated: ~40 minutes before it shows `moderation_failed`.
+- **Lowered from 50:** 50 was safe but left such an ad `pending` for ~4 hours, with no extra protection in practice.
 
 **Discarded:** retrying forever (starvation, poison messages), and a low cap without circuit-breaker awareness (a short blip fails valid ads).
 

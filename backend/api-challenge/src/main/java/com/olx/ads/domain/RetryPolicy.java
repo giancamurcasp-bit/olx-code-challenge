@@ -17,7 +17,7 @@ public record RetryPolicy(
 
   public static RetryPolicy defaults() {
     return new RetryPolicy(
-        50,
+        15,
         Duration.ofSeconds(1),
         Duration.ofMinutes(5),
         () -> ThreadLocalRandom.current().nextDouble());
