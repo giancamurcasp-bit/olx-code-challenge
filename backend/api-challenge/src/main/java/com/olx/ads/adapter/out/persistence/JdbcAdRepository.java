@@ -80,7 +80,7 @@ public class JdbcAdRepository implements AdRepository {
   }
 
   @Override
-  public boolean update(Ad ad) {
+  public boolean update(Ad ad, Instant leasedUntil) {
     int updated =
         jdbc.sql(
                 """

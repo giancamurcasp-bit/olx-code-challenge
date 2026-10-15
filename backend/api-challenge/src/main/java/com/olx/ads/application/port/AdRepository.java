@@ -22,9 +22,11 @@ public interface AdRepository {
   List<Ad> claimDue(int limit, Instant now, Duration lease);
 
   /**
-   * Saves the moderation state of an ad that is still pending in storage.
+   * Saves the moderation state of an ad, only if it is still pending and still leased until {@code
+   * leasedUntil} (the value its claim returned as {@code next_attempt_at}). The lease acts as a
+   * fencing token: if it expired and another worker claimed the ad, this stale write is discarded.
    *
-   * @return false if the ad was no longer pending (e.g. a duplicate worker already finished it)
+   * @return false if the write was discarded
    */
-  boolean update(Ad ad);
+  boolean update(Ad ad, Instant leasedUntil);
 }

@@ -7,6 +7,7 @@ import com.olx.ads.domain.ModerationResult;
 import com.olx.ads.domain.RetryPolicy;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,9 +56,10 @@ public class ModerationService {
   private void moderate(Ad ad) {
     MDC.put("ad_id", String.valueOf(ad.getId()));
     try {
+      Instant leasedUntil = ad.getNextAttemptAt();
       ModerationResult result = gateway.check(ad);
       ad.applyModeration(result, retryPolicy, clock.instant());
-      if (repository.update(ad)) {
+      if (repository.update(ad, leasedUntil)) {
         logOutcome(ad, result);
       } else {
         log.warn("Moderation result discarded: ad is no longer pending");

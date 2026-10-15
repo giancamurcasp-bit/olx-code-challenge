@@ -100,7 +100,7 @@ class JdbcAdRepositoryTest {
     Ad ad = repository.insert(newAdCreatedAt(NOW));
     ad.applyModeration(new ModerationResult.Rejected("prohibited_item"), POLICY, NOW);
 
-    assertThat(repository.update(ad)).isTrue();
+    assertThat(repository.update(ad, NOW)).isTrue();
 
     Ad found = repository.findById(ad.getId()).orElseThrow();
     assertThat(found.getStatus()).isEqualTo(AdStatus.REJECTED);
@@ -116,12 +116,38 @@ class JdbcAdRepositoryTest {
     Ad lateCopy = repository.findById(inserted.getId()).orElseThrow();
 
     firstCopy.applyModeration(new ModerationResult.Approved(), POLICY, NOW);
-    repository.update(firstCopy);
+    repository.update(firstCopy, NOW);
     lateCopy.applyModeration(new ModerationResult.Rejected("prohibited_item"), POLICY, NOW);
 
-    assertThat(repository.update(lateCopy)).isFalse();
+    assertThat(repository.update(lateCopy, NOW)).isFalse();
     assertThat(repository.findById(inserted.getId()).orElseThrow().getStatus())
         .isEqualTo(AdStatus.PUBLISHED);
+  }
+
+  @Test
+  void updateIsDiscardedOnceAnotherWorkerTookOverTheExpiredLease() {
+    Ad ad = repository.insert(newAdCreatedAt(NOW));
+    Instant firstLease = NOW.plus(LEASE);
+    Instant secondLease = firstLease.plus(LEASE);
+    Ad slowWorkersCopy = claim(ad, NOW);
+    Ad otherWorkersCopy = claim(ad, firstLease); // the first lease expired before its write
+
+    slowWorkersCopy.applyModeration(new ModerationResult.Approved(), POLICY, firstLease);
+    otherWorkersCopy.applyModeration(
+        new ModerationResult.TransientFailure("http 500"), POLICY, firstLease);
+
+    assertThat(repository.update(slowWorkersCopy, firstLease)).isFalse();
+    assertThat(repository.update(otherWorkersCopy, secondLease)).isTrue();
+    Ad found = repository.findById(ad.getId()).orElseThrow();
+    assertThat(found.getStatus()).isEqualTo(AdStatus.PENDING);
+    assertThat(found.getLastModerationError()).isEqualTo("http 500");
+  }
+
+  private Ad claim(Ad ad, Instant now) {
+    return repository.claimDue(ANY_LIMIT, now, LEASE).stream()
+        .filter(claimed -> claimed.getId().equals(ad.getId()))
+        .findFirst()
+        .orElseThrow();
   }
 
   private static final RetryPolicy POLICY =

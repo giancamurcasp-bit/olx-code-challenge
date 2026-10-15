@@ -32,6 +32,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 class ModerationServiceTest {
 
   private static final Instant NOW = Instant.parse("2026-10-15T12:00:00Z");
+  private static final Duration LEASE = Duration.ofSeconds(30);
   private static final RetryPolicy POLICY =
       new RetryPolicy(3, Duration.ofSeconds(1), Duration.ofMinutes(5), () -> 0.0);
 
@@ -46,12 +47,7 @@ class ModerationServiceTest {
     jdbc.sql("TRUNCATE ads").update(); // the batch must only see this test's ads
     service =
         new ModerationService(
-            repository,
-            gateway,
-            Clock.fixed(NOW, ZoneOffset.UTC),
-            POLICY,
-            10,
-            Duration.ofSeconds(30));
+            repository, gateway, Clock.fixed(NOW, ZoneOffset.UTC), POLICY, 10, LEASE);
   }
 
   @Test
@@ -128,6 +124,20 @@ class ModerationServiceTest {
     assertThat(find(broken).getStatus()).isEqualTo(AdStatus.PENDING); // retried after the lease
   }
 
+  @Test
+  void discardsTheResultWhenTheLeaseExpiredAndAnotherWorkerClaimedTheAd() {
+    Ad ad = insertDueAd("Sofá 3 lugares retrátil");
+    Instant expired = NOW.plus(LEASE);
+    gateway.duringCheck(() -> repository.claimDue(10, expired, LEASE)); // a slow provider call
+
+    service.moderateDueAds();
+
+    Ad found = find(ad);
+    assertThat(found.getStatus()).isEqualTo(AdStatus.PENDING); // the other worker decides
+    assertThat(found.getModerationAttempts()).isZero();
+    assertThat(found.getNextAttemptAt()).isEqualTo(expired.plus(LEASE));
+  }
+
   // --- helpers ---
 
   private Ad insertDueAd(String title) {
@@ -154,6 +164,7 @@ class ModerationServiceTest {
     final List<Long> calls = new ArrayList<>();
     private final Map<Long, ModerationResult> answers = new HashMap<>();
     private Long failingId;
+    private Runnable duringCheck = () -> {};
     boolean acceptingCalls = true;
 
     @Override
@@ -169,9 +180,14 @@ class ModerationServiceTest {
       failingId = ad.getId();
     }
 
+    void duringCheck(Runnable action) {
+      duringCheck = action;
+    }
+
     @Override
     public ModerationResult check(Ad ad) {
       calls.add(ad.getId());
+      duringCheck.run();
       if (ad.getId().equals(failingId)) {
         throw new IllegalStateException("simulated bug");
       }
