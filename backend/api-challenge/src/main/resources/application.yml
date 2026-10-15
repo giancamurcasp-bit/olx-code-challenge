@@ -23,8 +23,10 @@ resilience4j:
   ratelimiter:
     instances:
       moderation:
-        limit-for-period: 4 # the provider allows 5 req/s; stay below it
-        limit-refresh-period: 1s
+        # 4 req/s, below the provider's 5, as 1 permit every 250ms: the provider counts a sliding
+        # 1s window, so "4 per 1s period" would let 8 calls through around a period boundary.
+        limit-for-period: 1
+        limit-refresh-period: 250ms
         timeout-duration: 5s # how long a call waits for a permit before being deferred
   circuitbreaker:
     instances:

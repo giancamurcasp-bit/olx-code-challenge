@@ -22,6 +22,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,6 +53,11 @@ class ModerationServiceTest {
     service =
         new ModerationService(
             repository, gateway, Clock.fixed(NOW, ZoneOffset.UTC), POLICY, 10, LEASE, CONCURRENCY);
+  }
+
+  @AfterEach
+  void tearDown() {
+    service.close();
   }
 
   @Test

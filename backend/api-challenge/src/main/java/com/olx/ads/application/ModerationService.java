@@ -9,15 +9,20 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 /**
  * Moderates pending ads in batches (DECISIONS.md, section 1): claim with a lease (short statement),
- * call the provider outside any transaction, then save the outcome (short statement).
+ * call the provider outside any transaction, then save the outcome (short statement). The ads of a
+ * batch are moderated in parallel, up to {@code concurrency} at a time, because each call mostly
+ * waits on the provider's latency; the rate limiter in the gateway still caps the call rate.
  */
-public class ModerationService {
+public class ModerationService implements AutoCloseable {
 
   private static final Logger log = LoggerFactory.getLogger(ModerationService.class);
 
@@ -27,6 +32,7 @@ public class ModerationService {
   private final RetryPolicy retryPolicy;
   private final int batchSize;
   private final Duration lease;
+  private final ExecutorService executor;
 
   public ModerationService(
       AdRepository repository,
@@ -42,6 +48,7 @@ public class ModerationService {
     this.retryPolicy = retryPolicy;
     this.batchSize = batchSize;
     this.lease = lease;
+    this.executor = Executors.newFixedThreadPool(concurrency, Thread.ofVirtual().factory());
   }
 
   /** Claims the ads that are due, moderates each one and saves the outcome. */
@@ -51,7 +58,27 @@ public class ModerationService {
       return; // ads stay due, and no attempts are spent while the provider is down
     }
     List<Ad> ads = repository.claimDue(batchSize, clock.instant(), lease);
-    ads.forEach(this::moderate);
+    List<Callable<Void>> tasks =
+        ads.stream()
+            .<Callable<Void>>map(
+                ad ->
+                    () -> {
+                      moderate(ad);
+                      return null;
+                    })
+            .toList();
+    try {
+      executor.invokeAll(tasks); // waits for the whole batch, so runs never overlap
+    } catch (InterruptedException e) {
+      Thread.currentThread()
+          .interrupt(); // shutting down: unfinished ads are retried after the lease
+    }
+  }
+
+  /** Stops the worker threads on shutdown; Spring calls it when the context closes. */
+  @Override
+  public void close() {
+    executor.shutdownNow();
   }
 
   private void moderate(Ad ad) {

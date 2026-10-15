@@ -89,6 +89,9 @@ The usual objection is that an outage exhausts every ad's attempts. Here, **whil
 
 - **Timeout ~3s:** the mock's maximum latency is 2s.
 - **Client-side rate limiter (~4 req/s, Resilience4j):** stays under the provider's limit instead of discovering it through `429`s. The mock counts rejected requests in its window, so aggressive retries keep us throttled.
+  - **1 permit every 250ms, not 4 per second:** the provider counts a sliding 1s window, and Resilience4j refills in fixed periods, so "4 per 1s" let 8 calls through around a period boundary. Measured on the stack: 23 `429`s for 40 ads before, 0 after.
+  - **Per instance:** each instance has its own limiter, so N instances would send up to N × 4 req/s. Run the worker on one instance (`moderation.worker.enabled`); more workers add no throughput, because the provider's 5 req/s is the cap. A shared limiter (Redis, or Bucket4j on Postgres) or a single-worker lock (ShedLock) would enforce it.
+- **Parallel calls within a batch (4 at a time, virtual threads):** each call mostly waits on the provider's latency (~1s), so one call at a time used ~1 of the 4 req/s. With 4 in flight the rate limiter becomes the limit. The batch still finishes before the next run starts, so runs never overlap. Measured: 40 ads in ~20s, most of it the backoff of the ~20% that fail; sequential managed ~1 ad/s.
 - **Circuit breaker (Resilience4j):** stops claiming ads when the dependency is unhealthy. The threshold (~50%) is set above the normal 20% error rate.
 - **No Resilience4j `Retry`:** retries are rescheduled in the database (`next_attempt_at`), so they survive restarts and don't block the worker.
 
