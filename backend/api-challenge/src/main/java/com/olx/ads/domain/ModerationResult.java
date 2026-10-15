@@ -7,7 +7,13 @@ public sealed interface ModerationResult {
 
   record Approved() implements ModerationResult {}
 
-  record Rejected(String reason) implements ModerationResult {}
+  record Rejected(String reason) implements ModerationResult {
+    public Rejected {
+      if (reason == null || reason.isBlank()) {
+        throw new IllegalArgumentException("a rejection must have a reason");
+      }
+    }
+  }
 
   /** Worth retrying: 5xx, timeout, connection error. Counts as an attempt. */
   record TransientFailure(String error) implements ModerationResult {}
