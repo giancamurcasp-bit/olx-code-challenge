@@ -166,7 +166,9 @@ Ours (`400`, `ProblemDetail`):
 
 - The 57 seed ads are imported as `pending` and go through real moderation. Assuming approval would bypass the rule, and this way the pipeline is exercised.
 - The seed has **no images**. Each ad gets a deterministic placeholder URL instead of weakening the "at least one image" rule.
-- There are no seed ads in `colecionaveis`, so that filter returns an empty page (tested).
+- There are no seed ads in `colecionaveis`, so that filter returns an empty page.
+- **Through `AdService`, at startup, idempotent:** each ad is created like any other (validated, `pending`), with the key `seed:<id>`, so a restart imports nothing new. The seed's `created_at` is kept, so its ties (28 distinct values for 57 ads) exercise the listing's tie-breaker. Disabled with `seed.enabled=false` (as in tests).
+- **A copy of the file:** `src/main/resources/seed/ads.json` is an unmodified copy of `api-mock/seed/ads.json`, because the app's Docker image can't read the mock's folder and the mock must not be changed.
 
 ---
 

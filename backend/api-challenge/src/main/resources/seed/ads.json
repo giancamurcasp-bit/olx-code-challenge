@@ -1,0 +1,468 @@
+{
+  "categories": [
+    "eletronicos",
+    "moveis",
+    "veiculos",
+    "imoveis",
+    "esportes",
+    "colecionaveis"
+  ],
+  "ads": [
+    {
+      "id": 1,
+      "title": "iPhone 13 128GB",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 80,
+      "category": "eletronicos",
+      "created_at": "2026-06-03T12:00:00.000Z"
+    },
+    {
+      "id": 2,
+      "title": "Notebook Dell Inspiron",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 395.71,
+      "category": "eletronicos",
+      "created_at": "2026-06-04T12:00:00.000Z"
+    },
+    {
+      "id": 3,
+      "title": "Smart TV 50 polegadas",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 711.43,
+      "category": "eletronicos",
+      "created_at": "2026-06-05T12:00:00.000Z"
+    },
+    {
+      "id": 4,
+      "title": "Fone Bluetooth JBL",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 1027.14,
+      "category": "eletronicos",
+      "created_at": "2026-06-06T12:00:00.000Z"
+    },
+    {
+      "id": 5,
+      "title": "Monitor Gamer 144hz",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 1342.86,
+      "category": "eletronicos",
+      "created_at": "2026-06-07T12:00:00.000Z"
+    },
+    {
+      "id": 6,
+      "title": "Console PS5",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 1658.57,
+      "category": "eletronicos",
+      "created_at": "2026-06-08T12:00:00.000Z"
+    },
+    {
+      "id": 7,
+      "title": "Tablet Samsung",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 1974.29,
+      "category": "eletronicos",
+      "created_at": "2026-06-09T12:00:00.000Z"
+    },
+    {
+      "id": 8,
+      "title": "Caixa de som portatil",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 2290,
+      "category": "eletronicos",
+      "created_at": "2026-06-10T12:00:00.000Z"
+    },
+    {
+      "id": 9,
+      "title": "Teclado mecanico",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 2605.71,
+      "category": "eletronicos",
+      "created_at": "2026-06-11T12:00:00.000Z"
+    },
+    {
+      "id": 10,
+      "title": "Mouse sem fio",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 2921.43,
+      "category": "eletronicos",
+      "created_at": "2026-06-12T12:00:00.000Z"
+    },
+    {
+      "id": 11,
+      "title": "Roteador Wi-Fi 6",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 3237.14,
+      "category": "eletronicos",
+      "created_at": "2026-06-13T12:00:00.000Z"
+    },
+    {
+      "id": 12,
+      "title": "Camera GoPro Hero 11",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 3552.86,
+      "category": "eletronicos",
+      "created_at": "2026-06-14T12:00:00.000Z"
+    },
+    {
+      "id": 13,
+      "title": "Smartwatch Amazfit",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 3868.57,
+      "category": "eletronicos",
+      "created_at": "2026-06-15T12:00:00.000Z"
+    },
+    {
+      "id": 14,
+      "title": "Impressora multifuncional",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 4184.29,
+      "category": "eletronicos",
+      "created_at": "2026-06-16T12:00:00.000Z"
+    },
+    {
+      "id": 15,
+      "title": "Sofa 3 lugares retratil",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 90,
+      "category": "moveis",
+      "created_at": "2026-06-17T12:00:00.000Z"
+    },
+    {
+      "id": 16,
+      "title": "Mesa de jantar 6 cadeiras",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 315.83,
+      "category": "moveis",
+      "created_at": "2026-06-18T12:00:00.000Z"
+    },
+    {
+      "id": 17,
+      "title": "Guarda-roupa casal",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 541.67,
+      "category": "moveis",
+      "created_at": "2026-06-19T12:00:00.000Z"
+    },
+    {
+      "id": 18,
+      "title": "Escrivaninha home office",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 767.5,
+      "category": "moveis",
+      "created_at": "2026-06-20T12:00:00.000Z"
+    },
+    {
+      "id": 19,
+      "title": "Cama box queen",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 993.33,
+      "category": "moveis",
+      "created_at": "2026-06-21T12:00:00.000Z"
+    },
+    {
+      "id": 20,
+      "title": "Estante para livros",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 1219.17,
+      "category": "moveis",
+      "created_at": "2026-06-22T12:00:00.000Z"
+    },
+    {
+      "id": 21,
+      "title": "Rack para TV",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 1445,
+      "category": "moveis",
+      "created_at": "2026-06-23T12:00:00.000Z"
+    },
+    {
+      "id": 22,
+      "title": "Poltrona reclinavel",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 1670.83,
+      "category": "moveis",
+      "created_at": "2026-06-24T12:00:00.000Z"
+    },
+    {
+      "id": 23,
+      "title": "Comoda 4 gavetas",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 1896.67,
+      "category": "moveis",
+      "created_at": "2026-06-25T12:00:00.000Z"
+    },
+    {
+      "id": 24,
+      "title": "Mesa de centro",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 2122.5,
+      "category": "moveis",
+      "created_at": "2026-06-26T12:00:00.000Z"
+    },
+    {
+      "id": 25,
+      "title": "Armario de cozinha",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 2348.33,
+      "category": "moveis",
+      "created_at": "2026-06-27T12:00:00.000Z"
+    },
+    {
+      "id": 26,
+      "title": "Cadeira gamer",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 2574.17,
+      "category": "moveis",
+      "created_at": "2026-06-28T12:00:00.000Z"
+    },
+    {
+      "id": 27,
+      "title": "Fiat Argo 2020",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 8000,
+      "category": "veiculos",
+      "created_at": "2026-06-01T12:00:00.000Z"
+    },
+    {
+      "id": 28,
+      "title": "Honda CG 160 2022",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 16700,
+      "category": "veiculos",
+      "created_at": "2026-06-02T12:00:00.000Z"
+    },
+    {
+      "id": 29,
+      "title": "VW Gol 1.6 2018",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 25400,
+      "category": "veiculos",
+      "created_at": "2026-06-03T12:00:00.000Z"
+    },
+    {
+      "id": 30,
+      "title": "Chevrolet Onix 2021",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 34100,
+      "category": "veiculos",
+      "created_at": "2026-06-04T12:00:00.000Z"
+    },
+    {
+      "id": 31,
+      "title": "Yamaha Fazer 250",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 42800,
+      "category": "veiculos",
+      "created_at": "2026-06-05T12:00:00.000Z"
+    },
+    {
+      "id": 32,
+      "title": "Hyundai HB20 2019",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 51500,
+      "category": "veiculos",
+      "created_at": "2026-06-06T12:00:00.000Z"
+    },
+    {
+      "id": 33,
+      "title": "Renault Kwid 2022",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 60200,
+      "category": "veiculos",
+      "created_at": "2026-06-07T12:00:00.000Z"
+    },
+    {
+      "id": 34,
+      "title": "Jeep Renegade 2020",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 68900,
+      "category": "veiculos",
+      "created_at": "2026-06-08T12:00:00.000Z"
+    },
+    {
+      "id": 35,
+      "title": "Fiat Toro 2021",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 77600,
+      "category": "veiculos",
+      "created_at": "2026-06-09T12:00:00.000Z"
+    },
+    {
+      "id": 36,
+      "title": "Honda Biz 125",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 86300,
+      "category": "veiculos",
+      "created_at": "2026-06-10T12:00:00.000Z"
+    },
+    {
+      "id": 37,
+      "title": "Apartamento 2 quartos Tijuca",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 95000,
+      "category": "imoveis",
+      "created_at": "2026-06-11T12:00:00.000Z"
+    },
+    {
+      "id": 38,
+      "title": "Casa 3 quartos com quintal",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 178888.89,
+      "category": "imoveis",
+      "created_at": "2026-06-12T12:00:00.000Z"
+    },
+    {
+      "id": 39,
+      "title": "Kitnet mobiliada Centro",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 262777.78,
+      "category": "imoveis",
+      "created_at": "2026-06-13T12:00:00.000Z"
+    },
+    {
+      "id": 40,
+      "title": "Apartamento 3 quartos Barra",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 346666.67,
+      "category": "imoveis",
+      "created_at": "2026-06-14T12:00:00.000Z"
+    },
+    {
+      "id": 41,
+      "title": "Casa de vila 2 quartos",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 430555.56,
+      "category": "imoveis",
+      "created_at": "2026-06-15T12:00:00.000Z"
+    },
+    {
+      "id": 42,
+      "title": "Cobertura duplex",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 514444.44,
+      "category": "imoveis",
+      "created_at": "2026-06-16T12:00:00.000Z"
+    },
+    {
+      "id": 43,
+      "title": "Terreno 300m2",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 598333.33,
+      "category": "imoveis",
+      "created_at": "2026-06-17T12:00:00.000Z"
+    },
+    {
+      "id": 44,
+      "title": "Sala comercial 40m2",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 682222.22,
+      "category": "imoveis",
+      "created_at": "2026-06-18T12:00:00.000Z"
+    },
+    {
+      "id": 45,
+      "title": "Apartamento garden",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 766111.11,
+      "category": "imoveis",
+      "created_at": "2026-06-19T12:00:00.000Z"
+    },
+    {
+      "id": 46,
+      "title": "Bicicleta aro 29",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 40,
+      "category": "esportes",
+      "created_at": "2026-06-20T12:00:00.000Z"
+    },
+    {
+      "id": 47,
+      "title": "Esteira eletrica",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 195,
+      "category": "esportes",
+      "created_at": "2026-06-21T12:00:00.000Z"
+    },
+    {
+      "id": 48,
+      "title": "Kit halteres 20kg",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 350,
+      "category": "esportes",
+      "created_at": "2026-06-22T12:00:00.000Z"
+    },
+    {
+      "id": 49,
+      "title": "Prancha de surf 6.2",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 505,
+      "category": "esportes",
+      "created_at": "2026-06-23T12:00:00.000Z"
+    },
+    {
+      "id": 50,
+      "title": "Chuteira society n42",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 660,
+      "category": "esportes",
+      "created_at": "2026-06-24T12:00:00.000Z"
+    },
+    {
+      "id": 51,
+      "title": "Bola de basquete oficial",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 815,
+      "category": "esportes",
+      "created_at": "2026-06-25T12:00:00.000Z"
+    },
+    {
+      "id": 52,
+      "title": "Raquete de tenis",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 970,
+      "category": "esportes",
+      "created_at": "2026-06-26T12:00:00.000Z"
+    },
+    {
+      "id": 53,
+      "title": "Patins inline n38",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 1125,
+      "category": "esportes",
+      "created_at": "2026-06-27T12:00:00.000Z"
+    },
+    {
+      "id": 54,
+      "title": "Barraca camping 4 pessoas",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 1280,
+      "category": "esportes",
+      "created_at": "2026-06-28T12:00:00.000Z"
+    },
+    {
+      "id": 55,
+      "title": "Skate montado",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 1435,
+      "category": "esportes",
+      "created_at": "2026-06-01T12:00:00.000Z"
+    },
+    {
+      "id": 56,
+      "title": "Luvas de boxe 14oz",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 1590,
+      "category": "esportes",
+      "created_at": "2026-06-02T12:00:00.000Z"
+    },
+    {
+      "id": 57,
+      "title": "Banco supino ajustavel",
+      "description": "Em otimo estado de conservacao. Retirada combinada com o vendedor. Aceito propostas.",
+      "price": 1745,
+      "category": "esportes",
+      "created_at": "2026-06-03T12:00:00.000Z"
+    }
+  ]
+}

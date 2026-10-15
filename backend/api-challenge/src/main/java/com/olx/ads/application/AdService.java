@@ -7,6 +7,7 @@ import com.olx.ads.domain.AdStatus;
 import com.olx.ads.domain.Category;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +32,14 @@ public class AdService {
    * instead of a duplicate; reusing the key for different content is an error.
    */
   public Creation create(NewAd newAd, String idempotencyKey) {
+    return create(newAd, idempotencyKey, clock.instant());
+  }
+
+  /**
+   * Creates an ad dated {@code createdAt}, for imports that keep their original date (the seed). It
+   * is still pending and due for moderation immediately.
+   */
+  public Creation create(NewAd newAd, String idempotencyKey, Instant createdAt) {
     Ad ad =
         Ad.create(
             newAd.title(),
@@ -38,7 +47,7 @@ public class AdService {
             newAd.price(),
             newAd.category(),
             newAd.images(),
-            clock.instant());
+            createdAt);
     return repository
         .insertWithIdempotencyKey(ad, idempotencyKey)
         .map(
