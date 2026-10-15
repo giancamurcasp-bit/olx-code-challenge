@@ -46,7 +46,7 @@ class RetryPolicyTest {
   void defaultsMatchTheDocumentedPolicy() {
     RetryPolicy policy = RetryPolicy.defaults();
 
-    assertThat(policy.maxAttempts()).isEqualTo(50);
+    assertThat(policy.maxAttempts()).isEqualTo(15);
     assertThat(policy.baseDelay()).isEqualTo(BASE);
     assertThat(policy.maxDelay()).isEqualTo(CAP);
   }
