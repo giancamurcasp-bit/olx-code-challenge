@@ -20,7 +20,13 @@ public class AdService {
     this.clock = clock;
   }
 
-  public Ad create(NewAd newAd) {
+  /**
+   * Creates an ad. With an idempotency key, a retry of the same request returns the ad created the
+   * first time instead of a duplicate; reusing the key for different content is an error.
+   *
+   * @param idempotencyKey optional; null creates the ad unconditionally
+   */
+  public Creation create(NewAd newAd, String idempotencyKey) {
     Ad ad =
         Ad.create(
             newAd.title(),
@@ -29,12 +35,29 @@ public class AdService {
             newAd.category(),
             newAd.images(),
             clock.instant());
-    return repository.insert(ad);
+    if (idempotencyKey == null) {
+      return new Creation(repository.insert(ad), false);
+    }
+    return repository
+        .insertWithIdempotencyKey(ad, idempotencyKey)
+        .map(created -> new Creation(created, false))
+        .orElseGet(() -> replay(ad, idempotencyKey));
+  }
+
+  private Creation replay(Ad requested, String idempotencyKey) {
+    Ad existing = repository.findByIdempotencyKey(idempotencyKey).orElseThrow();
+    if (!existing.hasSameContentAs(requested)) {
+      throw new IdempotencyKeyReusedException();
+    }
+    return new Creation(existing, true);
   }
 
   public Ad get(long id) {
     return repository.findById(id).orElseThrow(() -> new AdNotFoundException(id));
   }
+
+  /** The created ad, and whether it already existed (a replayed request). */
+  public record Creation(Ad ad, boolean replayed) {}
 
   public record NewAd(
       String title, String description, BigDecimal price, Category category, List<String> images) {}

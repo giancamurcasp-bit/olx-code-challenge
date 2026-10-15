@@ -10,6 +10,8 @@ Technical decisions, discarded alternatives and how ambiguous requirements were 
 
 **No transaction is held during the HTTP call** (up to 2s). The worker claims an ad in a short transaction by leasing it (pushing `next_attempt_at` forward, so other workers skip it), calls moderation outside any transaction, then saves the result in a second short transaction. If the worker crashes mid-call, the lease expires and the ad is retried.
 
+**The lease is a fencing token.** A slow batch can outlive its lease (rate-limit waits plus timeouts), and another instance may then re-claim the ad. The save only applies `WHERE status = 'pending' AND next_attempt_at = <the lease this worker claimed>`, so the stale worker's write is discarded instead of overwriting the newer attempt. Moderation is therefore **at-least-once**: the provider may see the same ad twice, which is harmless because a check has no side effects.
+
 **Why async:** the moderation API has 100–2000 ms latency, ~20% `500`s and a 5 req/s limit. Calling it inside the request would make creation slow, fail ~1 in 5 times and cap the API at 5 creates/s. Async gives:
 - **Low, predictable latency:** creating an ad costs one insert, regardless of the dependency.
 - **Availability decoupling:** ad creation keeps working while moderation is slow, down or throttling us, and moderation catches up afterwards.
@@ -115,10 +117,13 @@ Ours (`400`, `ProblemDetail`):
 | Field | Rule |
 | --- | --- |
 | `title` | 10–100 characters after trimming (code points, not bytes) |
-| `description` | Not blank |
+| `description` | Not blank, at most 5000 characters |
 | `price` | `> 0`, 2 decimal places |
 | `category` | One of the 6 moderation categories |
-| `images` | 1–10 absolute `http(s)` URLs |
+| `images` | 1–10 absolute `http(s)` URLs, at most 2048 characters each |
+| Text fields | No control characters, except line breaks and tabs in text |
+
+**Size limits and control characters:** without them, a 5 MB description was stored, and a NUL character reached PostgreSQL (which can't store it) and returned `500`. The limits bound storage per ad; the whole request body is still read before validation, so a body-size limit belongs at the edge (load balancer or gateway).
 
 **Where each rule lives:** the request DTO (Bean Validation) only checks presence and simple bounds; the precise rules (title length in characters, price scale, image URLs, category) live in the domain, defined once and applied to every way an ad is created (API, seed). Both produce the same `400` with `errors: [{field, message}]`. Bean Validation's `@Size` would also be wrong for titles: it counts UTF-16 units, so an emoji counts as 2.
 - **Trade-off:** the domain stops at the first broken rule, and only runs after the DTO checks pass, so a request with several mistakes may not report all of them at once.
@@ -195,6 +200,24 @@ com.olx.ads
 | Coverage | JaCoCo | Reported, not gated: what is tested matters more than the percentage |
 | Formatting | Spotless (google-java-format) | Consistent formatting, so diffs only show real changes |
 | Run | Docker Compose (app + Postgres + mock) | One command |
+
+---
+
+## 10. Safe retries of `POST /ads` (`Idempotency-Key`)
+
+A client that times out and retries would otherwise create the ad twice. `POST /ads` accepts an optional `Idempotency-Key` header (IETF draft `draft-ietf-httpapi-idempotency-key-header`, as used by Stripe):
+
+| Request | Response |
+| --- | --- |
+| New key | `201`, ad created |
+| Same key, same content | `201` with the **same** ad and `Location`, plus `Idempotent-Replayed: true` |
+| Same key, different content | `422`: the key was reused for another ad |
+| No key | `201`, always a new ad |
+
+- **Storage:** a nullable unique column `ads.idempotency_key`, written by the same insert as the ad (`ON CONFLICT DO NOTHING`), so two concurrent retries can't both create an ad. No separate keys table: one statement, no dual write.
+- **"Same content"** compares the validated ad (trimmed title, price by value), not the raw bytes, so `3500` and `3500.00` match.
+- **The replay returns the ad's current state**, which may no longer be `pending`; the ad is the same, which is what the client needs.
+- **Not done:** keys never expire (a TTL would clear them after e.g. 24h), and they are global, not per user, because there are no users (4.1). With authentication, the unique constraint becomes `(author_id, idempotency_key)`.
 
 ---
 

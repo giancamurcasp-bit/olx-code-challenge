@@ -163,7 +163,11 @@ public class Ad {
 
   /** Whether {@code other} describes the same ad content, ignoring ids, status and timestamps. */
   public boolean hasSameContentAs(Ad other) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return title.equals(other.title)
+        && description.equals(other.description)
+        && price.compareTo(other.price) == 0
+        && category == other.category
+        && images.equals(other.images);
   }
 
   private void failModeration(String error) {

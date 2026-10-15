@@ -1,6 +1,7 @@
 package com.olx.ads.adapter.in.web;
 
 import com.olx.ads.application.AdNotFoundException;
+import com.olx.ads.application.IdempotencyKeyReusedException;
 import com.olx.ads.domain.InvalidAdException;
 import java.util.List;
 import org.springframework.http.HttpHeaders;
@@ -46,6 +47,11 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
   @ExceptionHandler(AdNotFoundException.class)
   ProblemDetail handleNotFound(AdNotFoundException ex) {
     return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+  }
+
+  @ExceptionHandler(IdempotencyKeyReusedException.class)
+  ProblemDetail handleIdempotencyKeyReused(IdempotencyKeyReusedException ex) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
   }
 
   private static ProblemDetail validationProblem(List<FieldError> errors) {

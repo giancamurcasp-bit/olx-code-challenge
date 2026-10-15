@@ -26,12 +26,24 @@ public class JdbcAdRepository implements AdRepository {
 
   @Override
   public Ad insert(Ad ad) {
+    return insert(ad, null).orElseThrow();
+  }
+
+  /** {@code ON CONFLICT} waits for a concurrent insert of the same key, so the race is safe. */
+  @Override
+  public Optional<Ad> insertWithIdempotencyKey(Ad ad, String idempotencyKey) {
+    return insert(ad, idempotencyKey);
+  }
+
+  private Optional<Ad> insert(Ad ad, String idempotencyKey) {
     return jdbc.sql(
             """
             INSERT INTO ads (title, description, price, category, images, status,
-                             moderation_attempts, next_attempt_at, created_at, updated_at)
+                             moderation_attempts, next_attempt_at, created_at, updated_at,
+                             idempotency_key)
             VALUES (:title, :description, :price, :category, :images, :status,
-                    :attempts, :nextAttemptAt, :createdAt, :updatedAt)
+                    :attempts, :nextAttemptAt, :createdAt, :updatedAt, :idempotencyKey)
+            ON CONFLICT (idempotency_key) DO NOTHING
             RETURNING *
             """)
         .param("title", ad.getTitle())
@@ -44,18 +56,17 @@ public class JdbcAdRepository implements AdRepository {
         .param("nextAttemptAt", toTimestamp(ad.getNextAttemptAt()))
         .param("createdAt", toTimestamp(ad.getCreatedAt()))
         .param("updatedAt", toTimestamp(ad.getUpdatedAt()))
+        .param("idempotencyKey", idempotencyKey)
         .query(JdbcAdRepository::toAd)
-        .single();
-  }
-
-  @Override
-  public Optional<Ad> insertWithIdempotencyKey(Ad ad, String idempotencyKey) {
-    throw new UnsupportedOperationException("not implemented yet");
+        .optional();
   }
 
   @Override
   public Optional<Ad> findByIdempotencyKey(String idempotencyKey) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return jdbc.sql("SELECT * FROM ads WHERE idempotency_key = :key")
+        .param("key", idempotencyKey)
+        .query(JdbcAdRepository::toAd)
+        .optional();
   }
 
   @Override

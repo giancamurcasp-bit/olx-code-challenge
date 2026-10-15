@@ -105,15 +105,20 @@ The full, interactive contract is served by OpenAPI at `/swagger-ui.html` (JSON 
 | Field | Rules |
 | --- | --- |
 | `title` | 10–100 characters (after trimming) |
-| `description` | Required |
+| `description` | Required, at most 5000 characters |
 | `price` | `> 0`, up to 2 decimal places |
 | `category` | `eletronicos`, `moveis`, `veiculos`, `imoveis`, `esportes`, `colecionaveis` |
-| `images` | 1–10 absolute `http(s)` URLs |
+| `images` | 1–10 absolute `http(s)` URLs, at most 2048 characters each |
+
+Text fields can't contain control characters (line breaks and tabs are allowed).
+
+Optional header `Idempotency-Key` (1–255 visible ASCII characters, e.g. a UUID): retrying with the same key returns the ad created the first time instead of a duplicate (`DECISIONS.md` 10).
 
 Responses:
 
-- `201 Created`: ad stored with `"status": "pending"`; `Location` header points to `/ads/{id}`.
-- `400 Bad Request`: validation errors (`application/problem+json`).
+- `201 Created`: ad stored with `"status": "pending"`; `Location` header points to `/ads/{id}`. On a replayed key: the original ad, with `Idempotent-Replayed: true`.
+- `400 Bad Request`: validation errors (`application/problem+json`), or a malformed `Idempotency-Key`.
+- `422 Unprocessable Content`: the `Idempotency-Key` was already used for a different ad.
 
 ### `GET /ads` — list ads
 
