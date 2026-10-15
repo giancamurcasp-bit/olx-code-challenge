@@ -98,7 +98,44 @@ class AdCreationTest {
     assertInvalid(() -> Ad.create(TITLE, description, PRICE, CATEGORY, IMAGES, NOW));
   }
 
+  @Test
+  void acceptsDescriptionUpTo5000Characters() {
+    String emoji = "😀"; // counted as 1 character, like the title
+
+    assertThatCode(() -> createWithDescription(emoji.repeat(5000))).doesNotThrowAnyException();
+    assertInvalid(() -> createWithDescription(emoji.repeat(5001)));
+  }
+
+  @Test
+  void acceptsLineBreaksAndTabsInDescription() {
+    assertThatCode(() -> createWithDescription("Linha 1\nLinha 2\r\n\tItem"))
+        .doesNotThrowAnyException();
+  }
+
+  // --- control characters (PostgreSQL can't store NUL; the others are never meaningful) ---
+
+  @ParameterizedTest
+  @ValueSource(strings = {"\u0000", "\u0007", "\u001b", "\u007f"})
+  void rejectsControlCharactersInText(String control) {
+    assertInvalid(() -> createWithTitle(TITLE + control));
+    assertInvalid(() -> createWithDescription(DESCRIPTION + control));
+  }
+
   // --- images ---
+
+  @Test
+  void rejectsImageUrlsLongerThan2048Characters() {
+    String prefix = "https://example.com/";
+    String atLimit = prefix + "a".repeat(2048 - prefix.length());
+
+    assertThatCode(() -> createWithImages(List.of(atLimit))).doesNotThrowAnyException();
+    assertInvalid(() -> createWithImages(List.of(atLimit + "a")));
+  }
+
+  @Test
+  void rejectsImageUrlsWithControlCharacters() {
+    assertInvalid(() -> createWithImages(List.of("https://example.com/a\u0000.jpg")));
+  }
 
   @Test
   void rejectsAdWithoutImages() {
@@ -143,6 +180,10 @@ class AdCreationTest {
 
   private static Ad createWithTitle(String title) {
     return Ad.create(title, DESCRIPTION, PRICE, CATEGORY, IMAGES, NOW);
+  }
+
+  private static Ad createWithDescription(String description) {
+    return Ad.create(TITLE, description, PRICE, CATEGORY, IMAGES, NOW);
   }
 
   private static Ad createWithPrice(BigDecimal price) {

@@ -96,7 +96,15 @@ class AdApiTest {
         invalid("no images", ad -> ad.put("images", List.of()), "images"),
         invalid("image not http", ad -> ad.put("images", List.of("ftp://x.com/a.jpg")), "images"),
         invalid("unknown category", ad -> ad.put("category", "carros"), "category"),
-        invalid("blank description", ad -> ad.put("description", "   "), "description"));
+        invalid("blank description", ad -> ad.put("description", "   "), "description"),
+        invalid("NUL in title", ad -> ad.put("title", "iPhone 13\u0000 azul"), "title"),
+        invalid("NUL in description", ad -> ad.put("description", "Ótimo\u0000"), "description"),
+        invalid(
+            "description too long", ad -> ad.put("description", "a".repeat(5001)), "description"),
+        invalid(
+            "image URL too long",
+            ad -> ad.put("images", List.of("https://example.com/" + "a".repeat(2048))),
+            "images"));
   }
 
   @Test
