@@ -7,6 +7,8 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.RateLimiter;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Protects the provider and ourselves (DECISIONS.md, section 3): a client-side rate limiter keeps
@@ -15,6 +17,8 @@ import java.util.concurrent.TimeUnit;
  * without counting an attempt.
  */
 public class ResilientModerationGateway implements ModerationGateway {
+
+  private static final Logger log = LoggerFactory.getLogger(ResilientModerationGateway.class);
 
   /**
    * How long a call that didn't go out is postponed. Short on purpose: while the circuit stays open
@@ -36,10 +40,12 @@ public class ResilientModerationGateway implements ModerationGateway {
   @Override
   public ModerationResult check(Ad ad) {
     if (!circuitBreaker.tryAcquirePermission()) {
+      log.debug("Call not sent: circuit breaker {}", circuitBreaker.getState());
       return new ModerationResult.RateLimited(DEFER);
     }
     if (!rateLimiter.acquirePermission()) {
       circuitBreaker.releasePermission();
+      log.warn("Call not sent: no rate-limit permit in time; too many calls waiting");
       return new ModerationResult.RateLimited(DEFER);
     }
     long start = System.nanoTime();

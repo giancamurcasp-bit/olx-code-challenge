@@ -67,12 +67,21 @@ public class ModerationService implements AutoCloseable {
                       return null;
                     })
             .toList();
+    if (tasks.isEmpty()) {
+      return;
+    }
+    long start = System.nanoTime();
     try {
       executor.invokeAll(tasks); // waits for the whole batch, so runs never overlap
     } catch (InterruptedException e) {
-      Thread.currentThread()
-          .interrupt(); // shutting down: unfinished ads are retried after the lease
+      Thread.currentThread().interrupt();
+      log.warn("Moderation run interrupted (shutting down); unfinished ads retry after the lease");
+      return;
     }
+    log.info(
+        "Moderation run: {} ads in {} ms",
+        tasks.size(),
+        Duration.ofNanos(System.nanoTime() - start).toMillis());
   }
 
   /** Stops the worker threads on shutdown; Spring calls it when the context closes. */

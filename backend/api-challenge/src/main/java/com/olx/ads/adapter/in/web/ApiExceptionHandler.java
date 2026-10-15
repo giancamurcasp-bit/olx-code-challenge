@@ -4,6 +4,8 @@ import com.olx.ads.application.AdNotFoundException;
 import com.olx.ads.application.IdempotencyKeyReusedException;
 import com.olx.ads.domain.InvalidAdException;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -23,6 +25,8 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
  */
 @RestControllerAdvice
 class ApiExceptionHandler extends ResponseEntityExceptionHandler {
+
+  private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
   record FieldError(String field, String message) {}
 
@@ -58,6 +62,17 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
   @ExceptionHandler(IdempotencyKeyReusedException.class)
   ProblemDetail handleIdempotencyKeyReused(IdempotencyKeyReusedException ex) {
     return ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
+  }
+
+  /**
+   * Anything unexpected is a bug: logged with its stack trace (and the request id), answered with a
+   * generic problem so internal details never reach the client.
+   */
+  @ExceptionHandler(Exception.class)
+  ProblemDetail handleUnexpected(Exception ex) {
+    log.error("Unexpected error handling the request", ex);
+    return ProblemDetail.forStatusAndDetail(
+        HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error; it has been logged");
   }
 
   private static ProblemDetail validationProblem(String detail, List<FieldError> errors) {
