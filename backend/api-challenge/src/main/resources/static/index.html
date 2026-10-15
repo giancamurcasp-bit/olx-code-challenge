@@ -11,6 +11,7 @@
   <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js" crossorigin></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js" crossorigin></script>
   <style>
     :root {
       --bg: #f6f7f9; --panel: #fff; --text: #1d2330; --muted: #6b7280; --border: #e3e6eb;
@@ -51,6 +52,15 @@
     .http.ok { color: var(--published); }
     .http.err { color: var(--rejected); }
     .stack { display: grid; gap: 16px; align-content: start; min-width: 0; }
+    nav.tabs { display: flex; gap: 4px; margin-left: auto; }
+    nav.tabs a { padding: 6px 12px; border-radius: 6px; text-decoration: none; color: var(--accent); }
+    nav.tabs a.active { background: var(--accent); color: #fff; }
+    .arch { display: grid; gap: 16px; padding: 16px; max-width: 1400px; margin: 0 auto; }
+    .arch .diagram { overflow-x: auto; text-align: center; }
+    .arch .diagram svg { max-width: 100%; height: auto; }
+    .arch p.lead { margin: 0 0 10px; color: var(--muted); }
+    .arch td:first-child { font-weight: 600; white-space: nowrap; }
+    .arch code { font-family: ui-monospace, monospace; font-size: 12px; background: #f1f2f5; padding: 1px 4px; border-radius: 4px; }
   </style>
 </head>
 <body>
@@ -256,7 +266,156 @@
       </section>`;
   }
 
+  // --- architecture ---
+
+  const COMPONENTS = `flowchart TB
+    client([Client / Test UI])
+    subgraph IN [Inbound adapters]
+      direction LR
+      web[AdController<br/>REST · ProblemDetail · RequestIdFilter]
+      seed[SeedImporter<br/>57 ads at startup]
+      worker[ModerationWorker<br/>@Scheduled every 1s · ShedLock]
+    end
+    subgraph APP [Application]
+      direction LR
+      adsvc[AdService<br/>create · list · get · Idempotency-Key]
+      modsvc[ModerationService<br/>batch of 20 · 8 virtual threads]
+    end
+    subgraph DOM [Domain · pure Java]
+      direction LR
+      ad[Ad<br/>validation · status transitions]
+      retry[RetryPolicy<br/>backoff 1s→5min · 15 attempts]
+    end
+    subgraph OUT [Outbound adapters]
+      direction LR
+      repo[JdbcAdRepository<br/>JdbcClient · SQL]
+      resil[ResilientModerationGateway<br/>circuit breaker · 4 calls/s]
+      http[HttpModerationGateway<br/>RestClient · 3s timeout]
+    end
+    db[(PostgreSQL<br/>ads · shedlock)]
+    mock([Moderation API mock<br/>5 req/s])
+    client --> web
+    web --> adsvc
+    seed --> adsvc
+    worker --> modsvc
+    adsvc --> ad
+    modsvc --> ad
+    ad --- retry
+    adsvc -->|AdRepository port| repo
+    modsvc -->|AdRepository port| repo
+    modsvc -->|ModerationGateway port| resil
+    resil --> http
+    repo --> db
+    http -->|POST /v1/moderation/check| mock`;
+
+  const SEQUENCE = `sequenceDiagram
+    participant C as Client
+    participant API as Ads API
+    participant DB as PostgreSQL
+    participant W as Worker
+    participant M as Moderation API
+    C->>API: POST /ads + Idempotency-Key
+    API->>DB: INSERT ... ON CONFLICT (idempotency_key) DO NOTHING
+    API-->>C: 201 pending + Location
+    loop every 1s, one instance (ShedLock)
+      W->>DB: claim up to 20 due ads (FOR UPDATE SKIP LOCKED, lease 30s)
+      par up to 8 in flight, 4 calls/s
+        W->>M: POST /v1/moderation/check
+        M-->>W: approved / rejected / 429 / 500
+        W->>DB: UPDATE ... WHERE pending AND lease still ours
+      end
+    end
+    C->>API: GET /ads/{id} (poll)
+    API-->>C: published / rejected + rejection_reason`;
+
+  const STATES = `stateDiagram-v2
+    [*] --> pending: POST /ads (or seed)
+    pending --> published: approved
+    pending --> rejected: rejected (reason kept)
+    pending --> moderation_failed: 400 / unreadable response / 15 attempts
+    pending --> pending: 500 or timeout → backoff, attempt +1
+    pending --> pending: 429 or circuit open → later, no attempt
+    published --> [*]
+    rejected --> [*]
+    moderation_failed --> [*]`;
+
+  const MECHANISMS = [
+    ["Fast, always-available create", "Moderation is async: POST stores the ad as pending; the worker moderates it in the background", "AdService, ModerationWorker"],
+    ["No duplicate ads on retries", "Required Idempotency-Key, unique column, INSERT … ON CONFLICT DO NOTHING; same content replays, different content is 422", "AdService, V2 migration"],
+    ["No ad moderated twice at once", "Claim with FOR UPDATE SKIP LOCKED and a 30s lease in next_attempt_at", "JdbcAdRepository.claimDue"],
+    ["No stale writes", "The save requires the lease the worker claimed (fencing token)", "JdbcAdRepository.update"],
+    ["Stay under the provider's 5 req/s", "Rate limiter: 1 permit every 250ms (4/s); one worker across instances (ShedLock)", "ResilientModerationGateway, SchedulerLockConfig"],
+    ["Hide the provider's latency", "8 calls in flight on virtual threads (4 req/s × 2s max latency)", "ModerationService"],
+    ["Survive provider outages", "Circuit breaker: stop claiming while open; attempts not spent", "ResilientModerationGateway"],
+    ["Retries that survive restarts", "next_attempt_at in the database; exponential backoff + jitter, capped at 15 attempts", "Ad, RetryPolicy"],
+    ["Stable pagination", "Keyset cursor on (created_at DESC, id DESC), opaque next_cursor", "AdService.list, CursorCodec"],
+  ];
+
+  // Mermaid renders one diagram at a time; concurrent renders leave some diagrams empty.
+  let renderQueue = Promise.resolve();
+  let diagramCount = 0;
+
+  function Mermaid({ text }) {
+    const ref = React.useRef(null);
+    useEffect(() => {
+      if (!window.mermaid) {
+        ref.current.textContent = "Diagram library not loaded (offline?)";
+        return;
+      }
+      const id = "diagram-" + ++diagramCount;
+      renderQueue = renderQueue
+        .then(() => window.mermaid.render(id, text))
+        .then(({ svg }) => { if (ref.current) ref.current.innerHTML = svg; })
+        .catch(error => { if (ref.current) ref.current.textContent = "Diagram error: " + error.message; });
+    }, [text]);
+    return html`<div ref=${ref}></div>`;
+  }
+
+  function Architecture() {
+    return html`
+      <div class="arch">
+        <section>
+          <h2>Components · pragmatic hexagonal</h2>
+          <p class="lead">Inbound adapters call the application, which uses the domain and talks to the outside only through two ports. ArchUnit enforces the direction of the arrows.</p>
+          <div class="diagram"><${Mermaid} text=${COMPONENTS} /></div>
+        </section>
+          <section>
+            <h2>Create → moderate → read</h2>
+            <p class="lead">No transaction is open during the provider call: claim and save are short statements.</p>
+            <div class="diagram"><${Mermaid} text=${SEQUENCE} /></div>
+          </section>
+          <section>
+            <h2>Ad status</h2>
+            <p class="lead">Finished statuses never change again. Only calls that reach the provider count as attempts.</p>
+            <div class="diagram"><${Mermaid} text=${STATES} /></div>
+          </section>
+        <section>
+          <h2>Key mechanisms</h2>
+          <table>
+            <thead><tr><th>Problem</th><th>How it is solved</th><th>Where</th></tr></thead>
+            <tbody>
+              ${MECHANISMS.map(([problem, how, where]) => html`
+                <tr key=${problem}><td>${problem}</td><td>${how}</td><td><code>${where}</code></td></tr>`)}
+            </tbody>
+          </table>
+          <p class="muted">Details and trade-offs: DECISIONS.md in the repository.</p>
+        </section>
+      </div>`;
+  }
+
+  function useHashTab() {
+    const read = () => (location.hash === "#architecture" ? "architecture" : "test");
+    const [tab, setTab] = useState(read);
+    useEffect(() => {
+      const onChange = () => setTab(read());
+      window.addEventListener("hashchange", onChange);
+      return () => window.removeEventListener("hashchange", onChange);
+    }, []);
+    return tab;
+  }
+
   function App() {
+    const tab = useHashTab();
     const [selectedId, setSelectedId] = useState(null);
     const [refreshSignal, setRefreshSignal] = useState(0);
     return html`
@@ -264,7 +423,12 @@
         <h1>Ads API · Test UI</h1>
         <span class="muted">A manual testing helper; the contract is in</span>
         <a href="/swagger-ui.html">Swagger UI</a>
+        <nav class="tabs">
+          <a href="#test" class=${tab === "test" ? "active" : ""}>Test</a>
+          <a href="#architecture" class=${tab === "architecture" ? "active" : ""}>Architecture</a>
+        </nav>
       </header>
+      ${tab === "architecture" ? html`<${Architecture} />` : html`
       <main>
         <div class="stack">
           <${CreateAd} onCreated=${id => { setSelectedId(id); setRefreshSignal(n => n + 1); }} />
@@ -273,9 +437,10 @@
           <${AdDetail} id=${selectedId} />
           <${AdList} selectedId=${selectedId} onSelect=${setSelectedId} refreshSignal=${refreshSignal} />
         </div>
-      </main>`;
+      </main>`}`;
   }
 
+  if (window.mermaid) window.mermaid.initialize({ startOnLoad: false, theme: "neutral", securityLevel: "strict" });
   ReactDOM.createRoot(document.getElementById("root")).render(html`<${App} />`);
 </script>
 </body>

@@ -76,7 +76,7 @@ curl 'localhost:8080/ads?status=rejected'
 
 ### Test UI
 
-A single-page helper at `http://localhost:8080/` to exercise the API without curl: create ads (with example payloads that get approved or rejected for each reason), retry with the same `Idempotency-Key`, watch an ad go from `pending` to its outcome (it polls `GET /ads/{id}`), and page through the listing with filters. It is a testing aid, not part of the API: one static file (`src/main/resources/static/index.html`) with React from a CDN, no build step, served by the app so no CORS setup is needed.
+A single-page helper at `http://localhost:8080/` to exercise the API without curl: create ads (with example payloads that get approved or rejected for each reason), retry with the same `Idempotency-Key`, watch an ad go from `pending` to its outcome (it polls `GET /ads/{id}`), and page through the listing with filters. An **Architecture** tab (`http://localhost:8080/#architecture`) shows the components, the create → moderate → read flow, the ad status lifecycle and the key mechanisms. It is a testing aid, not part of the API: one static file (`src/main/resources/static/index.html`) with React from a CDN, no build step, served by the app so no CORS setup is needed.
 
 ### Running the app outside Docker
 
