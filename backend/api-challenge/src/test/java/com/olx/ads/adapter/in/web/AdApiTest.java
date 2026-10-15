@@ -1,5 +1,6 @@
 package com.olx.ads.adapter.in.web;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.nullValue;
@@ -44,7 +45,7 @@ class AdApiTest {
   @Test
   void createsAPendingAdAndPointsToIt() throws Exception {
     mockMvc
-        .perform(post("/ads").contentType(MediaType.APPLICATION_JSON).content(json(validAd())))
+        .perform(create(json(validAd())))
         .andExpect(status().isCreated())
         .andExpect(header().string("Location", matchesPattern(".*/ads/\\d+")))
         .andExpect(jsonPath("$.id").isNumber())
@@ -62,7 +63,7 @@ class AdApiTest {
   void locationOfACreatedAdReturnsThatAd() throws Exception {
     String location =
         mockMvc
-            .perform(post("/ads").contentType(MediaType.APPLICATION_JSON).content(json(validAd())))
+            .perform(create(json(validAd())))
             .andExpect(status().isCreated())
             .andReturn()
             .getResponse()
@@ -111,6 +112,15 @@ class AdApiTest {
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
   }
 
+  @Test
+  void rejectsCreationWithoutAnIdempotencyKey() throws Exception {
+    mockMvc
+        .perform(post("/ads").contentType(MediaType.APPLICATION_JSON).content(json(validAd())))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+        .andExpect(jsonPath("$.detail").value(containsString("Idempotency-Key")));
+  }
+
   @ParameterizedTest
   @ValueSource(strings = {"", "chave com espaço"})
   void rejectsMalformedIdempotencyKey(String key) throws Exception {
@@ -135,7 +145,7 @@ class AdApiTest {
     change.accept(ad);
 
     mockMvc
-        .perform(post("/ads").contentType(MediaType.APPLICATION_JSON).content(json(ad)))
+        .perform(create(json(ad)))
         .andExpect(status().isBadRequest())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
         .andExpect(jsonPath("$.errors[*].field").value(hasItem(field)));
@@ -163,7 +173,7 @@ class AdApiTest {
   @Test
   void rejectsMalformedJson() throws Exception {
     mockMvc
-        .perform(post("/ads").contentType(MediaType.APPLICATION_JSON).content("{\"title\":"))
+        .perform(create("{\"title\":"))
         .andExpect(status().isBadRequest())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
   }
@@ -194,6 +204,13 @@ class AdApiTest {
     ad.put("category", "eletronicos");
     ad.put("images", List.of("https://example.com/iphone.jpg"));
     return ad;
+  }
+
+  private MockHttpServletRequestBuilder create(String body) {
+    return post("/ads")
+        .header("Idempotency-Key", UUID.randomUUID().toString())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(body);
   }
 
   private MockHttpServletRequestBuilder createWithKey(String key, Map<String, Object> ad) {

@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import java.time.Duration;
+import java.util.UUID;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -73,6 +74,7 @@ class ModerationFlowTest {
     return mockMvc
         .perform(
             MockMvcRequestBuilders.post("/ads")
+                .header("Idempotency-Key", UUID.randomUUID().toString())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
         .andExpect(status().isCreated())
