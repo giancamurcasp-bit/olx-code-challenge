@@ -1,0 +1,112 @@
+package com.olx.ads.adapter.in.web;
+
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.matchesPattern;
+import static org.hamcrest.Matchers.nullValue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.olx.ads.TestcontainersConfiguration;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.json.JsonMapper;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@Import(TestcontainersConfiguration.class)
+class AdApiTest {
+
+  @Autowired MockMvc mockMvc;
+  @Autowired JsonMapper jsonMapper;
+
+  // --- create ---
+
+  @Test
+  void createsAPendingAdAndPointsToIt() throws Exception {
+    mockMvc
+        .perform(post("/ads").contentType(MediaType.APPLICATION_JSON).content(json(validAd())))
+        .andExpect(status().isCreated())
+        .andExpect(header().string("Location", matchesPattern(".*/ads/\\d+")))
+        .andExpect(jsonPath("$.id").isNumber())
+        .andExpect(jsonPath("$.title").value("iPhone 13 128GB azul"))
+        .andExpect(jsonPath("$.price").value(3500.0))
+        .andExpect(jsonPath("$.category").value("eletronicos"))
+        .andExpect(jsonPath("$.images[0]").value("https://example.com/iphone.jpg"))
+        .andExpect(jsonPath("$.status").value("pending"))
+        .andExpect(jsonPath("$.moderation_attempts").value(0))
+        .andExpect(jsonPath("$.rejection_reason").value(nullValue()))
+        .andExpect(jsonPath("$.created_at").isString());
+  }
+
+  // --- validation ---
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("invalidAds")
+  void rejectsInvalidAdsPointingToTheField(
+      String scenario, Consumer<Map<String, Object>> change, String field) throws Exception {
+    Map<String, Object> ad = validAd();
+    change.accept(ad);
+
+    mockMvc
+        .perform(post("/ads").contentType(MediaType.APPLICATION_JSON).content(json(ad)))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+        .andExpect(jsonPath("$.errors[*].field").value(hasItem(field)));
+  }
+
+  static Stream<Arguments> invalidAds() {
+    return Stream.of(
+        invalid("title too short", ad -> ad.put("title", "Curto"), "title"),
+        invalid("title missing", ad -> ad.remove("title"), "title"),
+        invalid("price zero", ad -> ad.put("price", 0), "price"),
+        invalid("no images", ad -> ad.put("images", List.of()), "images"),
+        invalid("image not http", ad -> ad.put("images", List.of("ftp://x.com/a.jpg")), "images"),
+        invalid("unknown category", ad -> ad.put("category", "carros"), "category"),
+        invalid("blank description", ad -> ad.put("description", "   "), "description"));
+  }
+
+  @Test
+  void rejectsMalformedJson() throws Exception {
+    mockMvc
+        .perform(post("/ads").contentType(MediaType.APPLICATION_JSON).content("{\"title\":"))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+  }
+
+  // --- helpers ---
+
+  private static Map<String, Object> validAd() {
+    Map<String, Object> ad = new LinkedHashMap<>();
+    ad.put("title", "iPhone 13 128GB azul");
+    ad.put("description", "Em ótimo estado, com caixa e nota fiscal.");
+    ad.put("price", 3500.00);
+    ad.put("category", "eletronicos");
+    ad.put("images", List.of("https://example.com/iphone.jpg"));
+    return ad;
+  }
+
+  private static Arguments invalid(
+      String scenario, Consumer<Map<String, Object>> change, String field) {
+    return Arguments.of(scenario, change, field);
+  }
+
+  private String json(Object body) {
+    return jsonMapper.writeValueAsString(body);
+  }
+}
