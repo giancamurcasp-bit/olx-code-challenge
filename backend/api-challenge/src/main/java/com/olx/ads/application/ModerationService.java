@@ -62,7 +62,7 @@ public class ModerationService {
       if (repository.update(ad, leasedUntil)) {
         logOutcome(ad, result);
       } else {
-        log.warn("Moderation result discarded: ad is no longer pending");
+        log.warn("Moderation result discarded: ad is no longer pending or was re-claimed");
       }
     } catch (RuntimeException e) {
       // One broken ad must not stop the batch; its lease expires and it is retried.

@@ -90,7 +90,7 @@ public class JdbcAdRepository implements AdRepository {
                                next_attempt_at = :nextAttemptAt,
                                last_moderation_error = :lastError,
                                updated_at = :updatedAt
-                WHERE id = :id AND status = 'pending'
+                WHERE id = :id AND status = 'pending' AND next_attempt_at = :leasedUntil
                 """)
             .param("status", ad.getStatus().value())
             .param("rejectionReason", ad.getRejectionReason())
@@ -99,6 +99,7 @@ public class JdbcAdRepository implements AdRepository {
             .param("lastError", ad.getLastModerationError())
             .param("updatedAt", toTimestamp(ad.getUpdatedAt()))
             .param("id", ad.getId())
+            .param("leasedUntil", toTimestamp(leasedUntil))
             .update();
     return updated == 1;
   }

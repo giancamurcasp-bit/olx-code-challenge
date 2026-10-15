@@ -16,7 +16,7 @@ moderation:
     enabled: true
     poll-interval: 1s
     batch-size: 10
-    lease: 30s # longer than the read timeout, so a live worker never loses its claim
+    lease: 30s # if a slow batch outlives it, the stale write is discarded (fencing)
 
 resilience4j:
   ratelimiter:
