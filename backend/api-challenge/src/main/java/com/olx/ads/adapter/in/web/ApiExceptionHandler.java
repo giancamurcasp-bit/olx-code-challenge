@@ -36,12 +36,18 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         ex.getFieldErrors().stream()
             .map(error -> new FieldError(error.getField(), error.getDefaultMessage()))
             .toList();
-    return ResponseEntity.badRequest().body(validationProblem(errors));
+    return ResponseEntity.badRequest().body(validationProblem("Invalid ad", errors));
   }
 
   @ExceptionHandler(InvalidAdException.class)
   ProblemDetail handleInvalidAd(InvalidAdException ex) {
-    return validationProblem(List.of(new FieldError(ex.getField(), ex.getMessage())));
+    return validationProblem("Invalid ad", List.of(new FieldError(ex.getField(), ex.getMessage())));
+  }
+
+  @ExceptionHandler(InvalidParameterException.class)
+  ProblemDetail handleInvalidParameter(InvalidParameterException ex) {
+    return validationProblem(
+        "Invalid query parameter", List.of(new FieldError(ex.getParameter(), ex.getMessage())));
   }
 
   @ExceptionHandler(AdNotFoundException.class)
@@ -54,8 +60,8 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     return ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
   }
 
-  private static ProblemDetail validationProblem(List<FieldError> errors) {
-    ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Invalid ad");
+  private static ProblemDetail validationProblem(String detail, List<FieldError> errors) {
+    ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, detail);
     problem.setProperty("errors", errors);
     return problem;
   }

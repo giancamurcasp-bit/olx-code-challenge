@@ -72,7 +72,13 @@ public class AdService {
    * @param after optional; null returns the first page
    */
   public AdPage list(AdStatus status, Category category, PageCursor after, int limit) {
-    return new AdPage(List.of(), null); // not implemented yet
+    List<Ad> ads = repository.findPage(status, category, after, limit + 1); // +1: is there more?
+    if (ads.size() <= limit) {
+      return new AdPage(ads, null);
+    }
+    List<Ad> page = ads.subList(0, limit);
+    Ad last = page.getLast();
+    return new AdPage(List.copyOf(page), new PageCursor(last.getCreatedAt(), last.getId()));
   }
 
   public Ad get(long id) {

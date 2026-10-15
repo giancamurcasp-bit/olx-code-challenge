@@ -142,7 +142,7 @@ Ordered by most recent first. Response:
 }
 ```
 
-`next_cursor` is `null` on the last page.
+`next_cursor` is `null` on the last page. Invalid parameters (`limit` outside 1–50, unknown `status` or `category`, a cursor not issued by the API) return `400` with `errors: [{field, message}]`.
 
 ### `GET /ads/{id}` — ad details
 

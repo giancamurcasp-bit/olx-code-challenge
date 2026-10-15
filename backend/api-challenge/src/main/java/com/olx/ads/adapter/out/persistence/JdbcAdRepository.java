@@ -78,9 +78,33 @@ public class JdbcAdRepository implements AdRepository {
         .optional();
   }
 
+  /**
+   * Keyset pagination: the row comparison {@code (created_at, id) < (...)} seeks straight to the
+   * cursor on the listing indexes. Optional filters are added to the SQL only when present, so each
+   * variant gets a plan that uses its index (an {@code :x IS NULL OR ...} would not).
+   */
   @Override
   public List<Ad> findPage(AdStatus status, Category category, PageCursor after, int limit) {
-    return List.of(); // not implemented yet
+    StringBuilder sql = new StringBuilder("SELECT * FROM ads WHERE status = :status");
+    if (category != null) {
+      sql.append(" AND category = :category");
+    }
+    if (after != null) {
+      sql.append(" AND (created_at, id) < (:afterCreatedAt, :afterId)");
+    }
+    sql.append(" ORDER BY created_at DESC, id DESC LIMIT :limit");
+
+    var statement = jdbc.sql(sql.toString()).param("status", status.value()).param("limit", limit);
+    if (category != null) {
+      statement = statement.param("category", category.value());
+    }
+    if (after != null) {
+      statement =
+          statement
+              .param("afterCreatedAt", toTimestamp(after.createdAt()))
+              .param("afterId", after.id());
+    }
+    return statement.query(JdbcAdRepository::toAd).list();
   }
 
   /**
