@@ -21,7 +21,9 @@ class ModerationWorker {
    * Runs on one instance at a time: the others skip the run while the lock is held (DECISIONS.md,
    * section 3), so the in-memory rate limiter is effectively global.
    */
-  @Scheduled(fixedDelayString = "${moderation.worker.poll-interval}")
+  @Scheduled(
+      fixedDelayString = "${moderation.worker.poll-interval}",
+      initialDelayString = "${moderation.worker.poll-interval}") // not mid-startup, e.g. in tests
   @SchedulerLock(name = "moderation-worker")
   void run() {
     moderationService.moderateDueAds();
