@@ -44,6 +44,10 @@ public class ModerationService {
 
   /** Claims the ads that are due, moderates each one and saves the outcome. */
   public void moderateDueAds() {
+    if (!gateway.isAcceptingCalls()) {
+      log.debug("Moderation provider unavailable; not claiming ads");
+      return; // ads stay due, and no attempts are spent while the provider is down
+    }
     List<Ad> ads = repository.claimDue(batchSize, clock.instant(), lease);
     ads.forEach(this::moderate);
   }

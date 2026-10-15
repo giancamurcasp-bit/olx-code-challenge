@@ -18,6 +18,23 @@ moderation:
     batch-size: 10
     lease: 30s # longer than the read timeout, so a live worker never loses its claim
 
+resilience4j:
+  ratelimiter:
+    instances:
+      moderation:
+        limit-for-period: 4 # the provider allows 5 req/s; stay below it
+        limit-refresh-period: 1s
+        timeout-duration: 5s # how long a call waits for a permit before being deferred
+  circuitbreaker:
+    instances:
+      moderation:
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50 # the provider's normal error rate is ~20%
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true # the worker polls the state
+
 management:
   endpoints:
     web:

@@ -11,7 +11,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
-import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -20,7 +19,6 @@ import org.springframework.web.client.RestClientException;
  * ModerationResult} (DECISIONS.md, sections 2 and 3). Note: the provider documents the rejection
  * field as {@code reason} but actually sends {@code rejection_reason}; both are read.
  */
-@Component
 public class HttpModerationGateway implements ModerationGateway {
 
   private static final String CHECK_PATH = "/v1/moderation/check";
