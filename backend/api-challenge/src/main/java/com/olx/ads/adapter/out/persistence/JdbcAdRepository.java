@@ -25,18 +25,9 @@ public class JdbcAdRepository implements AdRepository {
     this.jdbc = jdbc;
   }
 
-  @Override
-  public Ad insert(Ad ad) {
-    return insert(ad, null).orElseThrow();
-  }
-
   /** {@code ON CONFLICT} waits for a concurrent insert of the same key, so the race is safe. */
   @Override
   public Optional<Ad> insertWithIdempotencyKey(Ad ad, String idempotencyKey) {
-    return insert(ad, idempotencyKey);
-  }
-
-  private Optional<Ad> insert(Ad ad, String idempotencyKey) {
     return jdbc.sql(
             """
             INSERT INTO ads (title, description, price, category, images, status,

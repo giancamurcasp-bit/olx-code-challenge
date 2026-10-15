@@ -2,6 +2,7 @@ package com.olx.ads.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.olx.ads.TestAds;
 import com.olx.ads.TestcontainersConfiguration;
 import com.olx.ads.application.port.AdRepository;
 import com.olx.ads.application.port.ModerationGateway;
@@ -100,7 +101,7 @@ class ModerationServiceTest {
 
   @Test
   void adsThatAreNotDueAreNotModerated() {
-    Ad ad = repository.insert(newAd("Sofá 3 lugares retrátil", NOW.plusSeconds(3600)));
+    Ad ad = TestAds.store(repository, newAd("Sofá 3 lugares retrátil", NOW.plusSeconds(3600)));
 
     service.moderateDueAds();
 
@@ -180,7 +181,7 @@ class ModerationServiceTest {
   // --- helpers ---
 
   private Ad insertDueAd(String title) {
-    return repository.insert(newAd(title, NOW));
+    return TestAds.store(repository, newAd(title, NOW));
   }
 
   private Ad find(Ad ad) {

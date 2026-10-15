@@ -2,6 +2,7 @@ package com.olx.ads.adapter.out.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.olx.ads.TestAds;
 import com.olx.ads.TestcontainersConfiguration;
 import com.olx.ads.domain.Ad;
 import com.olx.ads.domain.AdStatus;
@@ -44,7 +45,7 @@ class JdbcAdRepositoryTest {
             List.of("https://example.com/1.jpg", "https://example.com/2.jpg"),
             NOW);
 
-    Ad inserted = repository.insert(ad);
+    Ad inserted = TestAds.store(repository, ad);
     Ad found = repository.findById(inserted.getId()).orElseThrow();
 
     assertThat(inserted.getId()).isNotNull();
@@ -116,7 +117,7 @@ class JdbcAdRepositoryTest {
 
   @Test
   void claimsDueAdsAndLeasesThem() {
-    Ad ad = repository.insert(newAdCreatedAt(NOW));
+    Ad ad = TestAds.store(repository, newAdCreatedAt(NOW));
 
     List<Ad> claimed = repository.claimDue(ANY_LIMIT, NOW, LEASE);
 
@@ -127,7 +128,7 @@ class JdbcAdRepositoryTest {
 
   @Test
   void doesNotClaimAdsThatAreNotDueYet() {
-    Ad ad = repository.insert(newAdCreatedAt(NOW.plusSeconds(3600)));
+    Ad ad = TestAds.store(repository, newAdCreatedAt(NOW.plusSeconds(3600)));
 
     assertThat(repository.claimDue(ANY_LIMIT, NOW, LEASE))
         .extracting(Ad::getId)
@@ -136,7 +137,7 @@ class JdbcAdRepositoryTest {
 
   @Test
   void doesNotClaimAnAdAgainUntilItsLeaseExpires() {
-    Ad ad = repository.insert(newAdCreatedAt(NOW));
+    Ad ad = TestAds.store(repository, newAdCreatedAt(NOW));
     repository.claimDue(ANY_LIMIT, NOW, LEASE);
 
     assertThat(repository.claimDue(ANY_LIMIT, NOW.plusSeconds(10), LEASE))
@@ -149,7 +150,7 @@ class JdbcAdRepositoryTest {
 
   @Test
   void updateStoresTheModerationOutcome() {
-    Ad ad = repository.insert(newAdCreatedAt(NOW));
+    Ad ad = TestAds.store(repository, newAdCreatedAt(NOW));
     ad.applyModeration(new ModerationResult.Rejected("prohibited_item"), POLICY, NOW);
 
     assertThat(repository.update(ad, NOW)).isTrue();
@@ -163,7 +164,7 @@ class JdbcAdRepositoryTest {
 
   @Test
   void updateDoesNotOverwriteAnAdThatIsNoLongerPending() {
-    Ad inserted = repository.insert(newAdCreatedAt(NOW));
+    Ad inserted = TestAds.store(repository, newAdCreatedAt(NOW));
     Ad firstCopy = repository.findById(inserted.getId()).orElseThrow();
     Ad lateCopy = repository.findById(inserted.getId()).orElseThrow();
 
@@ -178,7 +179,7 @@ class JdbcAdRepositoryTest {
 
   @Test
   void updateIsDiscardedOnceAnotherWorkerTookOverTheExpiredLease() {
-    Ad ad = repository.insert(newAdCreatedAt(NOW));
+    Ad ad = TestAds.store(repository, newAdCreatedAt(NOW));
     Instant firstLease = NOW.plus(LEASE);
     Instant secondLease = firstLease.plus(LEASE);
     Ad slowWorkersCopy = claim(ad, NOW);

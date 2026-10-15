@@ -2,6 +2,7 @@ package com.olx.ads.adapter.out.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.olx.ads.TestAds;
 import com.olx.ads.TestcontainersConfiguration;
 import com.olx.ads.application.port.PageCursor;
 import com.olx.ads.domain.Ad;
@@ -73,7 +74,7 @@ class JdbcAdRepositoryListingTest {
   @Test
   void filtersByStatus() {
     Ad publishedAd = published(Category.MOVEIS, NOW);
-    Ad pendingAd = repository.insert(newAd(Category.MOVEIS, NOW));
+    Ad pendingAd = TestAds.store(repository, newAd(Category.MOVEIS, NOW));
 
     assertThat(repository.findPage(AdStatus.PUBLISHED, null, null, 10))
         .extracting(Ad::getId)
@@ -96,7 +97,7 @@ class JdbcAdRepositoryListingTest {
   // --- helpers ---
 
   private Ad published(Category category, Instant createdAt) {
-    Ad ad = repository.insert(newAd(category, createdAt));
+    Ad ad = TestAds.store(repository, newAd(category, createdAt));
     ad.applyModeration(new ModerationResult.Approved(), POLICY, createdAt);
     repository.update(ad, createdAt);
     return ad;

@@ -11,12 +11,10 @@ import java.util.Optional;
 /** Persistence port for ads. */
 public interface AdRepository {
 
-  /** Stores a new ad and returns it as stored, with its generated id. */
-  Ad insert(Ad ad);
-
   /**
-   * Stores a new ad under a client-supplied idempotency key, atomically: if an ad was already
-   * stored with that key (even by a concurrent request), nothing is stored and the result is empty.
+   * Stores a new ad, with its generated id, under an idempotency key, atomically: if an ad was
+   * already stored with that key (even by a concurrent request), nothing is stored and the result
+   * is empty.
    */
   Optional<Ad> insertWithIdempotencyKey(Ad ad, String idempotencyKey);
 

@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import com.olx.ads.TestAds;
 import com.olx.ads.TestcontainersConfiguration;
 import com.olx.ads.application.port.AdRepository;
 import com.olx.ads.domain.Ad;
@@ -54,7 +55,7 @@ class AdListingApiTest {
   void listsOnlyPublishedAdsByDefault() throws Exception {
     Ad published = moderated(Category.MOVEIS, NOW, new ModerationResult.Approved());
     moderated(Category.MOVEIS, NOW, new ModerationResult.Rejected("prohibited_item"));
-    repository.insert(newAd(Category.MOVEIS, NOW)); // pending
+    TestAds.store(repository, newAd(Category.MOVEIS, NOW)); // pending
 
     mockMvc
         .perform(get("/ads"))
@@ -151,7 +152,7 @@ class AdListingApiTest {
   // --- helpers ---
 
   private Ad moderated(Category category, Instant createdAt, ModerationResult result) {
-    Ad ad = repository.insert(newAd(category, createdAt));
+    Ad ad = TestAds.store(repository, newAd(category, createdAt));
     ad.applyModeration(result, POLICY, createdAt);
     repository.update(ad, createdAt);
     return ad;

@@ -187,8 +187,7 @@ class AdServiceTest {
     final List<Ad> ads = new ArrayList<>();
     private final Map<String, Ad> byIdempotencyKey = new HashMap<>();
 
-    @Override
-    public Ad insert(Ad ad) {
+    private Ad insert(Ad ad) {
       Ad stored =
           Ad.restore(
               ads.size() + 1L,

@@ -2,6 +2,7 @@ package com.olx.ads.adapter.in.scheduler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.olx.ads.TestAds;
 import com.olx.ads.TestcontainersConfiguration;
 import com.olx.ads.application.port.AdRepository;
 import com.olx.ads.domain.Ad;
@@ -42,7 +43,7 @@ class ModerationWorkerLockTest {
     // Free the lock by expiring its row, not deleting it: ShedLock remembers that the row exists
     // and only updates it, like a real deployment where the row is never deleted.
     setLock("nobody", "- interval '1 second'");
-    ad = repository.insert(dueAd());
+    ad = TestAds.store(repository, dueAd());
   }
 
   @Test
