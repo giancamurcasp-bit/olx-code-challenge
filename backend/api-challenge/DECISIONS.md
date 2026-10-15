@@ -205,14 +205,16 @@ com.olx.ads
 
 ## 10. Safe retries of `POST /ads` (`Idempotency-Key`)
 
-A client that times out and retries would otherwise create the ad twice. `POST /ads` accepts an optional `Idempotency-Key` header (IETF draft `draft-ietf-httpapi-idempotency-key-header`, as used by Stripe):
+A client that times out and retries would otherwise create the ad twice. `POST /ads` **requires** an `Idempotency-Key` header (IETF draft `draft-ietf-httpapi-idempotency-key-header`; Stripe uses the same header):
 
 | Request | Response |
 | --- | --- |
 | New key | `201`, ad created |
 | Same key, same content | `201` with the **same** ad and `Location`, plus `Idempotent-Replayed: true` |
 | Same key, different content | `422`: the key was reused for another ad |
-| No key | `201`, always a new ad |
+| No key, or a malformed one | `400` |
+
+**Why required, not optional:** an optional key protects only the clients that remember to send it; every other retry still duplicates the ad. The alternative, detecting duplicates by content, is wrong without users: two sellers posting the same ad would be merged into one. Trade-off: every client must generate a key (a UUID per create attempt, reused on retries), and a plain `curl` needs the extra header.
 
 - **Storage:** a nullable unique column `ads.idempotency_key`, written by the same insert as the ad (`ON CONFLICT DO NOTHING`), so two concurrent retries can't both create an ad. No separate keys table: one statement, no dual write.
 - **"Same content"** compares the validated ad (trimmed title, price by value), not the raw bytes, so `3500` and `3500.00` match.

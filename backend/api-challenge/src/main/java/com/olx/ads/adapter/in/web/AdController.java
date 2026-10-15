@@ -32,14 +32,15 @@ class AdController {
   }
 
   /**
-   * Stores the ad as {@code pending}; moderation happens asynchronously. A retry with the same
-   * {@code Idempotency-Key} returns the original ad, marked with {@code Idempotent-Replayed}.
+   * Stores the ad as {@code pending}; moderation happens asynchronously. The {@code
+   * Idempotency-Key} is required, so a retry returns the original ad (marked with {@code
+   * Idempotent-Replayed}) instead of creating a duplicate.
    */
   @PostMapping
   ResponseEntity<AdResponse> create(
-      @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestHeader("Idempotency-Key") String idempotencyKey,
       @Valid @RequestBody CreateAdRequest request) {
-    if (idempotencyKey != null && !IDEMPOTENCY_KEY.matcher(idempotencyKey).matches()) {
+    if (!IDEMPOTENCY_KEY.matcher(idempotencyKey).matches()) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Idempotency-Key must be 1 to 255 visible ASCII characters");
     }

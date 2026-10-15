@@ -112,12 +112,16 @@ The full, interactive contract is served by OpenAPI at `/swagger-ui.html` (JSON 
 
 Text fields can't contain control characters (line breaks and tabs are allowed).
 
-Optional header `Idempotency-Key` (1–255 visible ASCII characters, e.g. a UUID): retrying with the same key returns the ad created the first time instead of a duplicate (`DECISIONS.md` 10).
+Required header `Idempotency-Key` (1–255 visible ASCII characters, e.g. a UUID): generate one per ad and reuse it on retries, so a retry returns the ad created the first time instead of a duplicate (`DECISIONS.md` 10).
+
+```bash
+curl -i localhost:8080/ads -H 'Content-Type: application/json' -H "Idempotency-Key: $(uuidgen)" -d @ad.json
+```
 
 Responses:
 
 - `201 Created`: ad stored with `"status": "pending"`; `Location` header points to `/ads/{id}`. On a replayed key: the original ad, with `Idempotent-Replayed: true`.
-- `400 Bad Request`: validation errors (`application/problem+json`), or a malformed `Idempotency-Key`.
+- `400 Bad Request`: validation errors (`application/problem+json`), or a missing or malformed `Idempotency-Key`.
 - `422 Unprocessable Content`: the `Idempotency-Key` was already used for a different ad.
 
 ### `GET /ads` — list ads

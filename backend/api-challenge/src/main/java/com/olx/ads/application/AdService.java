@@ -21,10 +21,8 @@ public class AdService {
   }
 
   /**
-   * Creates an ad. With an idempotency key, a retry of the same request returns the ad created the
-   * first time instead of a duplicate; reusing the key for different content is an error.
-   *
-   * @param idempotencyKey optional; null creates the ad unconditionally
+   * Creates an ad. A retry with the same idempotency key returns the ad created the first time
+   * instead of a duplicate; reusing the key for different content is an error.
    */
   public Creation create(NewAd newAd, String idempotencyKey) {
     Ad ad =
@@ -35,9 +33,6 @@ public class AdService {
             newAd.category(),
             newAd.images(),
             clock.instant());
-    if (idempotencyKey == null) {
-      return new Creation(repository.insert(ad), false);
-    }
     return repository
         .insertWithIdempotencyKey(ad, idempotencyKey)
         .map(created -> new Creation(created, false))
