@@ -40,6 +40,7 @@ How AI was used in this project, what it got wrong, and how its output was valid
 | Users and authentication were not mentioned | A real gap: anyone can see rejected ads | Decided it is out of scope for this version, but documented it explicitly as something to implement (`DECISIONS.md` 4.1) |
 | The worker's lease comment said "a live worker never loses its claim" | False: a batch can wait on the rate limiter and time out on several ads, outliving the 30s lease, so two instances could write the same ad | Asked for a security and race-condition review; the fix makes the lease a fencing token, so the stale write is discarded (`DECISIONS.md` 1) |
 | `Idempotency-Key` added as an optional header (the AI's recommendation) | I pointed out that duplicates were still possible for any client that doesn't send it | Made it required, and documented why content-based deduplication isn't an option without users (`DECISIONS.md` 10) |
+| `AdService` had no unit tests; its behavior was only covered through the HTTP API and database tests | Idempotency logic (replay vs. key reuse) was tested only end to end, so a failure wouldn't point to the service | Asked for unit tests: an in-memory repository instead of mocks, so a retry really finds the stored ad (`AdServiceTest`) |
 
 ## How I validated
 
