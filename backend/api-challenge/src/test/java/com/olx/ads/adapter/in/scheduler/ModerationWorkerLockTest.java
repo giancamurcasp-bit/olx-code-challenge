@@ -38,19 +38,16 @@ class ModerationWorkerLockTest {
 
   @BeforeEach
   void setUp() {
-    jdbc.sql("TRUNCATE ads, shedlock").update();
+    jdbc.sql("TRUNCATE ads").update();
+    // Free the lock by expiring its row, not deleting it: ShedLock remembers that the row exists
+    // and only updates it, like a real deployment where the row is never deleted.
+    setLock("nobody", "- interval '1 second'");
     ad = repository.insert(dueAd());
   }
 
   @Test
   void skipsTheRunWhileAnotherInstanceHoldsTheLock() {
-    jdbc.sql(
-            """
-            INSERT INTO shedlock (name, lock_until, locked_at, locked_by)
-            VALUES ('moderation-worker', timezone('utc', now()) + interval '1 hour',
-                    timezone('utc', now()), 'other-instance')
-            """)
-        .update();
+    setLock("other-instance", "+ interval '1 hour'");
 
     worker.run();
 
@@ -73,6 +70,20 @@ class ModerationWorkerLockTest {
             .query(Boolean.class)
             .single();
     assertThat(released).isTrue();
+  }
+
+  private void setLock(String lockedBy, String untilFromNow) {
+    jdbc.sql(
+            """
+            INSERT INTO shedlock (name, lock_until, locked_at, locked_by)
+            VALUES ('moderation-worker', timezone('utc', now()) %s, timezone('utc', now()), :by)
+            ON CONFLICT (name) DO UPDATE
+            SET lock_until = EXCLUDED.lock_until, locked_at = EXCLUDED.locked_at,
+                locked_by = EXCLUDED.locked_by
+            """
+                .formatted(untilFromNow))
+        .param("by", lockedBy)
+        .update();
   }
 
   private static Ad dueAd() {

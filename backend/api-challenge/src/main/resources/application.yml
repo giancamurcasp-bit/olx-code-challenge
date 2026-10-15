@@ -17,6 +17,9 @@ moderation:
     poll-interval: 1s
     batch-size: 20
     concurrency: 4 # provider calls in flight; the rate limiter still caps them at 4 req/s
+    # Safety net if an instance dies holding the worker lock; longer than the worst-case run
+    # (20 ads / 4 in flight x (5s permit wait + 3s timeout) = 40s).
+    lock-at-most-for: 2m
     lease: 30s # if a slow batch outlives it, the stale write is discarded (fencing)
 
 resilience4j:

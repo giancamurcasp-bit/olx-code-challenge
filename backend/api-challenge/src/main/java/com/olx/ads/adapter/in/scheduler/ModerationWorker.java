@@ -1,6 +1,7 @@
 package com.olx.ads.adapter.in.scheduler;
 
 import com.olx.ads.application.ModerationService;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -16,7 +17,12 @@ class ModerationWorker {
     this.moderationService = moderationService;
   }
 
+  /**
+   * Runs on one instance at a time: the others skip the run while the lock is held (DECISIONS.md,
+   * section 3), so the in-memory rate limiter is effectively global.
+   */
   @Scheduled(fixedDelayString = "${moderation.worker.poll-interval}")
+  @SchedulerLock(name = "moderation-worker")
   void run() {
     moderationService.moderateDueAds();
   }
