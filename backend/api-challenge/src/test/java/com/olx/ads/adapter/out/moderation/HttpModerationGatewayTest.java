@@ -121,6 +121,17 @@ class HttpModerationGatewayTest {
         .isEqualTo(new ModerationResult.RateLimited(Duration.ofSeconds(3)));
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"Wed, 21 Oct 2026 07:28:00 GMT", "-5", "soon"})
+  void unusableRetryAfterFallsBackToOneSecond(String retryAfter) {
+    moderation.stubFor(
+        post(CHECK_PATH)
+            .willReturn(aResponse().withStatus(429).withHeader("Retry-After", retryAfter)));
+
+    assertThat(gateway().check(ad))
+        .isEqualTo(new ModerationResult.RateLimited(Duration.ofSeconds(1)));
+  }
+
   @Test
   void rateLimitedResponseWithoutRetryAfterWaitsOneSecond() {
     respond(429, "{\"error\":\"too_many_requests\"}");

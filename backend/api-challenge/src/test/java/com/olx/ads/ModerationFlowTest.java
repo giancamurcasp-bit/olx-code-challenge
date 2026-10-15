@@ -1,5 +1,6 @@
 package com.olx.ads;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.containing;
 import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
@@ -10,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
+import com.github.tomakehurst.wiremock.stubbing.Scenario;
 import java.time.Duration;
 import java.util.UUID;
 import org.awaitility.Awaitility;
@@ -62,6 +64,31 @@ class ModerationFlowTest {
     mockMvc
         .perform(get(rejected))
         .andExpect(jsonPath("$.rejection_reason").value("contact_info_not_allowed"));
+  }
+
+  @Test
+  void aFailedCallIsRetriedUntilTheAdIsModerated() throws Exception {
+    moderation.stubFor(
+        post("/v1/moderation/check")
+            .withRequestBody(matchingJsonPath("$.title", containing("Bicicleta")))
+            .inScenario("flaky provider")
+            .whenScenarioStateIs(Scenario.STARTED)
+            .willReturn(aResponse().withStatus(500))
+            .willSetStateTo("recovered"));
+    moderation.stubFor(
+        post("/v1/moderation/check")
+            .withRequestBody(matchingJsonPath("$.title", containing("Bicicleta")))
+            .inScenario("flaky provider")
+            .whenScenarioStateIs("recovered")
+            .willReturn(okJson("{\"status\":\"approved\"}")));
+
+    String ad = create("Bicicleta aro 29 Caloi");
+
+    awaitStatus(ad, "published");
+    mockMvc
+        .perform(get(ad))
+        .andExpect(jsonPath("$.moderation_attempts").value(2))
+        .andExpect(jsonPath("$.last_moderation_error").value("http 500"));
   }
 
   private String create(String title) throws Exception {

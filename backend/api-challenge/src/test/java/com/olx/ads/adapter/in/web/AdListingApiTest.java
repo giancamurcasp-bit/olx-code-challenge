@@ -132,6 +132,14 @@ class AdListingApiTest {
         .andExpect(jsonPath("$.next_cursor").value(nullValue()));
   }
 
+  @Test
+  void rejectsANonNumericLimit() throws Exception {
+    mockMvc
+        .perform(get("/ads").param("limit", "abc"))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+  }
+
   @ParameterizedTest(name = "{0}={1}")
   @CsvSource({
     "limit, 0",

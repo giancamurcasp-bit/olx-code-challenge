@@ -171,6 +171,17 @@ class AdApiTest {
   }
 
   @Test
+  void rejectsAFieldOfTheWrongType() throws Exception {
+    Map<String, Object> ad = validAd();
+    ad.put("price", "três mil");
+
+    mockMvc
+        .perform(create(json(ad)))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+  }
+
+  @Test
   void rejectsMalformedJson() throws Exception {
     mockMvc
         .perform(create("{\"title\":"))

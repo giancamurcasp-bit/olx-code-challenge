@@ -39,6 +39,7 @@ class ResilientModerationGatewayTest {
               .minimumNumberOfCalls(WINDOW)
               .failureRateThreshold(50)
               .waitDurationInOpenState(Duration.ofMinutes(1))
+              .permittedNumberOfCallsInHalfOpenState(3) // as in application.yml
               .build());
 
   private final RateLimiter unlimited =
@@ -81,6 +82,29 @@ class ResilientModerationGatewayTest {
     callTimes(gateway, WINDOW);
 
     assertThat(gateway.isAcceptingCalls()).isTrue();
+  }
+
+  @Test
+  void successfulTrialCallsCloseTheCircuitAgain() {
+    var gateway = gateway(new StubProvider(new ModerationResult.Approved()), unlimited);
+    circuitBreaker.transitionToOpenState();
+    circuitBreaker.transitionToHalfOpenState(); // what the wait in the open state leads to
+
+    callTimes(gateway, 3); // the calls permitted in the half-open state
+
+    assertThat(circuitBreaker.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
+  }
+
+  @Test
+  void failingTrialCallsOpenTheCircuitAgain() {
+    var gateway =
+        gateway(new StubProvider(new ModerationResult.TransientFailure("http 500")), unlimited);
+    circuitBreaker.transitionToOpenState();
+    circuitBreaker.transitionToHalfOpenState();
+
+    callTimes(gateway, 3);
+
+    assertThat(gateway.isAcceptingCalls()).isFalse();
   }
 
   @Test
