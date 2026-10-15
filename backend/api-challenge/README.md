@@ -1,0 +1,160 @@
+# Ads API — Grupo OLX Code Challenge (Backend)
+
+REST service for **creating and listing marketplace ads**, with **automatic moderation** through an external moderation API before an ad is published.
+
+> 🚧 **Work in progress.** This README describes the target design; sections marked _(planned)_ are not implemented yet.
+
+- Technical decisions, trade-offs and interpretations: [`DECISIONS.md`](./DECISIONS.md)
+- How AI was used: [`AI_USAGE.md`](./AI_USAGE.md)
+- Moderation API (mock) contract: [`../api-mock/docs-candidato/API.md`](../api-mock/docs-candidato/API.md)
+
+---
+
+## How it works
+
+```
+ Client ──POST /ads──▶ API ──insert (status=pending)──▶ PostgreSQL
+                         ◀── 201 Created (pending) ──┘        ▲
+                                                              │ claim pending ads
+                                                              │ (FOR UPDATE SKIP LOCKED)
+                                                     Moderation worker
+                                                              │ rate limited (~4 req/s)
+                                                              │ circuit breaker, timeout
+                                                              ▼
+                                                     Moderation API (mock)
+                                                              │
+                              published / rejected (+reason) or reschedule with backoff
+```
+
+1. `POST /ads` validates the request and stores the ad as `pending`. The client gets a response immediately, without waiting on the moderation API.
+2. A background worker picks up pending ads and calls the moderation API.
+3. The ad becomes `published` (approved) or `rejected` (with `rejection_reason`). Transient failures (`500`, `429`, timeouts) are retried later with backoff; non-retryable failures (e.g. `400`) or exhausted retries move the ad to `moderation_failed`. An ad is **never published without moderation**.
+
+Why async: the moderation API has 100–2000 ms latency, ~20% error rate and a 5 req/s limit. See [`DECISIONS.md`](./DECISIONS.md#1-moderation-is-asynchronous-using-the-database-as-the-queue).
+
+### Ad statuses
+
+| Status | Meaning |
+| --- | --- |
+| `pending` | Waiting for (or retrying) moderation |
+| `published` | Approved, visible in the public listing |
+| `rejected` | Rejected by moderation; see `rejection_reason` |
+| `moderation_failed` | Moderation hit a non-retryable error or exhausted its retries; see `last_moderation_error` |
+
+---
+
+## Running _(planned)_
+
+**Requirements:** Docker and Docker Compose.
+
+```bash
+docker compose up --build
+```
+
+This starts:
+
+| Service | URL |
+| --- | --- |
+| Ads API | `http://localhost:8080` |
+| Swagger UI | `http://localhost:8080/swagger-ui.html` |
+| PostgreSQL | `localhost:5432` |
+| Moderation mock | `http://localhost:8787` |
+
+On startup, the 57 example ads from the mock's seed are imported as `pending` and moderated by the worker.
+
+### Running locally (without Docker for the app) _(planned)_
+
+Requires Java 21.
+
+```bash
+./gradlew bootRun
+```
+
+### Tests and coverage _(planned)_
+
+```bash
+./gradlew test                  # requires Docker (Testcontainers)
+./gradlew jacocoTestReport      # report at build/reports/jacoco/test/html/index.html
+```
+
+---
+
+## API contract _(planned)_
+
+The full, interactive contract is served by OpenAPI at `/swagger-ui.html` (JSON at `/v3/api-docs`). Summary:
+
+### `POST /ads` — create an ad
+
+```json
+{
+  "title": "iPhone 13 128GB azul",
+  "description": "Em ótimo estado, com caixa e nota fiscal.",
+  "price": 3500.00,
+  "category": "eletronicos",
+  "images": ["https://example.com/iphone.jpg"]
+}
+```
+
+| Field | Rules |
+| --- | --- |
+| `title` | 10–100 characters (after trimming) |
+| `description` | Required |
+| `price` | `> 0`, up to 2 decimal places |
+| `category` | `eletronicos`, `moveis`, `veiculos`, `imoveis`, `esportes`, `colecionaveis` |
+| `images` | 1–10 absolute `http(s)` URLs |
+
+Responses:
+
+- `201 Created`: ad stored with `"status": "pending"`; `Location` header points to `/ads/{id}`.
+- `400 Bad Request`: validation errors (`application/problem+json`).
+
+### `GET /ads` — list ads
+
+| Query param | Default | Description |
+| --- | --- | --- |
+| `category` | (all) | Filter by category |
+| `status` | `published` | Filter by status |
+| `limit` | `20` | Page size (max `50`) |
+| `cursor` | (first page) | Value of `next_cursor` from the previous page |
+
+Ordered by most recent first. Response:
+
+```json
+{
+  "data": [ { "id": 58, "title": "...", "status": "published", "...": "..." } ],
+  "next_cursor": "eyJjcmVhdGVkQXQiOi4uLn0"
+}
+```
+
+`next_cursor` is `null` on the last page.
+
+### `GET /ads/{id}` — ad details
+
+Returns the ad in any status, including moderation info:
+
+```json
+{
+  "id": 58,
+  "title": "Celular com whatsapp",
+  "description": "...",
+  "price": 1200.00,
+  "category": "eletronicos",
+  "images": ["https://example.com/a.jpg"],
+  "status": "rejected",
+  "rejection_reason": "contact_info_not_allowed",
+  "moderation_attempts": 1,
+  "last_moderation_error": null,
+  "created_at": "2026-10-14T12:00:00Z",
+  "updated_at": "2026-10-14T12:00:02Z"
+}
+```
+
+- `404 Not Found` if the ad doesn't exist.
+
+---
+
+## Tech stack
+
+Java 21 · Spring Boot 3 · Gradle · PostgreSQL · Flyway · Spring JdbcClient · Resilience4j · springdoc-openapi · JUnit 5 · Testcontainers · WireMock · ArchUnit · JaCoCo
+
+Rationale for each choice: [`DECISIONS.md` → Stack](./DECISIONS.md#9-stack).
