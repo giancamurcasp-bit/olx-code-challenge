@@ -79,8 +79,10 @@ Unbounded retries don't overload our server (outbound load is bounded by the rat
 
 The usual objection is that an outage exhausts every ad's attempts. Here, **while the circuit breaker is open the worker doesn't claim ads**, and `429`s don't count either, so attempts only count against a reachable dependency.
 
-**Why 15:** with backoff capped at 5 min, 15 attempts take ~40 minutes (~8.5 min of fast retries, then six at 5 min). A full outage doesn't spend them (the circuit is open), and random failures almost never add up: a healthy ad failing 15 times in a row is ~1 in 10¹⁰ at the normal 20% error rate, and ~1 in a million even in a partial outage at 40% that stays under the circuit-breaker threshold. What the cap really bounds is how long the seller waits for an ad that can never be moderated: ~40 minutes before it shows `moderation_failed`.
-- **Lowered from 50:** 50 was safe but left such an ad `pending` for ~4 hours, with no extra protection in practice.
+**Why 15:** 15 attempts have 14 gaps between them: nine growing ones (1s to ~4 min, ~8.5 min in total), then five at the 5 min cap, so ~34 minutes of backoff (33.5–35 min with jitter). A full outage doesn't spend them (the circuit is open), and random failures almost never add up: a healthy ad failing 15 times in a row is ~1 in 10¹⁰ at the normal 20% error rate, and ~1 in a million even in a partial outage at 40% that stays under the circuit-breaker threshold. What the cap really bounds is how long the seller waits for an ad that can never be moderated: at least ~34 minutes before it shows `moderation_failed`.
+- **A minimum, not a maximum:** the real time `pending` adds each call's latency (up to the 3s timeout), the wait to be claimed by a worker run, `Retry-After` waits and every period the circuit is open. The last one is unbounded on purpose: an outage doesn't spend attempts.
+- **Attempts vs. calls:** `moderation_attempts` counts provider answers (approved, rejected, `400`, `500`, timeouts), at most 15. Outbound calls can be more: the provider's `429`s don't count as attempts, and a call whose lease expired is made but its result is discarded (1). Calls deferred by our own rate limiter or open circuit are never sent.
+- **Lowered from 50:** 50 was safe but left such an ad `pending` for ~3.5 hours (49 gaps, 40 of them at 5 min), with no extra protection in practice.
 
 **Discarded:** retrying forever (starvation, poison messages), and a low cap without circuit-breaker awareness (a short blip fails valid ads).
 
