@@ -1,5 +1,6 @@
 package com.olx.ads.adapter.in.web;
 
+import com.olx.ads.application.AdNotFoundException;
 import com.olx.ads.domain.InvalidAdException;
 import java.util.List;
 import org.springframework.http.HttpHeaders;
@@ -40,6 +41,11 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
   @ExceptionHandler(InvalidAdException.class)
   ProblemDetail handleInvalidAd(InvalidAdException ex) {
     return validationProblem(List.of(new FieldError(ex.getField(), ex.getMessage())));
+  }
+
+  @ExceptionHandler(AdNotFoundException.class)
+  ProblemDetail handleNotFound(AdNotFoundException ex) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
   }
 
   private static ProblemDetail validationProblem(List<FieldError> errors) {

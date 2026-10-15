@@ -49,7 +49,10 @@ public class JdbcAdRepository implements AdRepository {
 
   @Override
   public Optional<Ad> findById(long id) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return jdbc.sql("SELECT * FROM ads WHERE id = :id")
+        .param("id", id)
+        .query(JdbcAdRepository::toAd)
+        .optional();
   }
 
   private static Ad toAd(ResultSet row, int rowNum) throws SQLException {

@@ -8,7 +8,7 @@ import java.time.Clock;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
-/** Creating ads. Moderation happens asynchronously (DECISIONS.md, section 1). */
+/** Creating and reading ads. Moderation happens asynchronously (DECISIONS.md, section 1). */
 @Service
 public class AdService {
 
@@ -30,6 +30,10 @@ public class AdService {
             newAd.images(),
             clock.instant());
     return repository.insert(ad);
+  }
+
+  public Ad get(long id) {
+    return repository.findById(id).orElseThrow(() -> new AdNotFoundException(id));
   }
 
   public record NewAd(
