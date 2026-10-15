@@ -14,6 +14,8 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
 import org.junit.jupiter.api.Test;
 
 class ResilientModerationGatewayTest {
@@ -112,7 +114,58 @@ class ResilientModerationGatewayTest {
     assertThat(provider.calls).isEqualTo(1);
   }
 
+  @Test
+  void concurrentCallsNeverExceedTheProvidersLimitInAnySecond() throws Exception {
+    // The production setting: 1 permit every 250ms. The provider rejects a 6th call within any
+    // sliding second; a "4 per 1s period" limiter let 8 through around a period boundary.
+    RateLimiter production =
+        RateLimiter.of(
+            "moderation",
+            RateLimiterConfig.custom()
+                .limitForPeriod(1)
+                .limitRefreshPeriod(Duration.ofMillis(250))
+                .timeoutDuration(Duration.ofSeconds(5))
+                .build());
+    var provider = new TimestampingProvider();
+    var gateway = gateway(provider, production);
+
+    try (var threads = Executors.newFixedThreadPool(4, Thread.ofVirtual().factory())) {
+      for (int i = 0; i < 12; i++) {
+        threads.submit(() -> gateway.check(ad));
+      }
+    }
+
+    assertThat(provider.callTimes).hasSize(12);
+    assertThat(maxCallsInAnySecond(provider.callTimes)).isLessThanOrEqualTo(5);
+  }
+
   // --- helpers ---
+
+  private static int maxCallsInAnySecond(List<Long> nanoTimes) {
+    List<Long> sorted = nanoTimes.stream().sorted().toList();
+    int max = 0;
+    for (int start = 0; start < sorted.size(); start++) {
+      int end = start;
+      while (end < sorted.size()
+          && sorted.get(end) - sorted.get(start) < Duration.ofSeconds(1).toNanos()) {
+        end++;
+      }
+      max = Math.max(max, end - start);
+    }
+    return max;
+  }
+
+  /** Records when each call reached the provider; approves everything. */
+  static class TimestampingProvider implements ModerationGateway {
+
+    final List<Long> callTimes = new CopyOnWriteArrayList<>();
+
+    @Override
+    public ModerationResult check(Ad ad) {
+      callTimes.add(System.nanoTime());
+      return new ModerationResult.Approved();
+    }
+  }
 
   private ResilientModerationGateway gateway(ModerationGateway provider, RateLimiter rateLimiter) {
     return new ResilientModerationGateway(provider, circuitBreaker, rateLimiter);

@@ -150,6 +150,24 @@ class ModerationServiceTest {
   }
 
   @Test
+  void eachRunClaimsAtMostOneBatchAndLeavesTheRestForTheNextRun() {
+    for (int i = 0; i < 15; i++) { // batch size is 10
+      insertDueAd("Sofá 3 lugares retrátil " + i);
+    }
+
+    service.moderateDueAds();
+
+    assertThat(gateway.calls).hasSize(10);
+    assertThat(countByStatus("published")).isEqualTo(10);
+    assertThat(countByStatus("pending")).isEqualTo(5); // still due, untouched
+
+    service.moderateDueAds();
+
+    assertThat(gateway.calls).hasSize(15);
+    assertThat(countByStatus("published")).isEqualTo(15);
+  }
+
+  @Test
   void moderatesUpToTheConcurrencyLimitAtTheSameTime() {
     for (int i = 0; i < 6; i++) {
       insertDueAd("Sofá 3 lugares retrátil " + i);
@@ -179,6 +197,13 @@ class ModerationServiceTest {
   }
 
   // --- helpers ---
+
+  private long countByStatus(String status) {
+    return jdbc.sql("SELECT count(*) FROM ads WHERE status = :status")
+        .param("status", status)
+        .query(Long.class)
+        .single();
+  }
 
   private Ad insertDueAd(String title) {
     return TestAds.store(repository, newAd(title, NOW));
