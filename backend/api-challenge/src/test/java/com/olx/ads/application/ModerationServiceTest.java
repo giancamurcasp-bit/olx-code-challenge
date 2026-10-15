@@ -103,6 +103,19 @@ class ModerationServiceTest {
   }
 
   @Test
+  void claimsNothingWhileTheProviderIsNotAcceptingCalls() {
+    Ad ad = insertDueAd("Sofá 3 lugares retrátil");
+    gateway.acceptingCalls = false;
+
+    service.moderateDueAds();
+
+    Ad found = find(ad);
+    assertThat(gateway.calls).isEmpty();
+    assertThat(found.getModerationAttempts()).isZero();
+    assertThat(found.getNextAttemptAt()).isEqualTo(NOW); // not leased: still due
+  }
+
+  @Test
   void anUnexpectedErrorOnOneAdDoesNotStopTheBatch() {
     Ad broken = insertDueAd("Anúncio que quebra o gateway");
     Ad healthy = insertDueAd("Sofá 3 lugares retrátil");
@@ -141,6 +154,12 @@ class ModerationServiceTest {
     final List<Long> calls = new ArrayList<>();
     private final Map<Long, ModerationResult> answers = new HashMap<>();
     private Long failingId;
+    boolean acceptingCalls = true;
+
+    @Override
+    public boolean isAcceptingCalls() {
+      return acceptingCalls;
+    }
 
     void answer(Ad ad, ModerationResult result) {
       answers.put(ad.getId(), result);

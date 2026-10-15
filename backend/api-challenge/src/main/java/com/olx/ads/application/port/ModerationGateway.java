@@ -7,4 +7,12 @@ import com.olx.ads.domain.ModerationResult;
 public interface ModerationGateway {
 
   ModerationResult check(Ad ad);
+
+  /**
+   * Whether calls would currently go through. False while the provider is considered unhealthy, so
+   * the worker doesn't claim ads it can't moderate (DECISIONS.md, section 2.1).
+   */
+  default boolean isAcceptingCalls() {
+    return true;
+  }
 }
