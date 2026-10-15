@@ -34,7 +34,8 @@ public class ModerationService {
       Clock clock,
       RetryPolicy retryPolicy,
       int batchSize,
-      Duration lease) {
+      Duration lease,
+      int concurrency) {
     this.repository = repository;
     this.gateway = gateway;
     this.clock = clock;

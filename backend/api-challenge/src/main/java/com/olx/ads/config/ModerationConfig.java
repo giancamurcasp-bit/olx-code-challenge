@@ -26,6 +26,12 @@ class ModerationConfig {
       RetryPolicy retryPolicy,
       ModerationWorkerProperties properties) {
     return new ModerationService(
-        repository, gateway, clock, retryPolicy, properties.batchSize(), properties.lease());
+        repository,
+        gateway,
+        clock,
+        retryPolicy,
+        properties.batchSize(),
+        properties.lease(),
+        properties.concurrency());
   }
 }

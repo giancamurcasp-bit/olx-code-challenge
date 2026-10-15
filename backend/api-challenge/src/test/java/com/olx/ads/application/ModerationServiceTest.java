@@ -15,10 +15,13 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +36,7 @@ class ModerationServiceTest {
 
   private static final Instant NOW = Instant.parse("2026-10-15T12:00:00Z");
   private static final Duration LEASE = Duration.ofSeconds(30);
+  private static final int CONCURRENCY = 4;
   private static final RetryPolicy POLICY =
       new RetryPolicy(3, Duration.ofSeconds(1), Duration.ofMinutes(5), () -> 0.0);
 
@@ -47,7 +51,7 @@ class ModerationServiceTest {
     jdbc.sql("TRUNCATE ads").update(); // the batch must only see this test's ads
     service =
         new ModerationService(
-            repository, gateway, Clock.fixed(NOW, ZoneOffset.UTC), POLICY, 10, LEASE);
+            repository, gateway, Clock.fixed(NOW, ZoneOffset.UTC), POLICY, 10, LEASE, CONCURRENCY);
   }
 
   @Test
@@ -138,6 +142,35 @@ class ModerationServiceTest {
     assertThat(found.getNextAttemptAt()).isEqualTo(expired.plus(LEASE));
   }
 
+  @Test
+  void moderatesUpToTheConcurrencyLimitAtTheSameTime() {
+    for (int i = 0; i < 6; i++) {
+      insertDueAd("Sofá 3 lugares retrátil " + i);
+    }
+    var inFlight = new AtomicInteger();
+    var maxInFlight = new AtomicInteger();
+    var concurrentCallsStarted = new CountDownLatch(CONCURRENCY);
+    gateway.duringCheck(
+        () -> {
+          maxInFlight.accumulateAndGet(inFlight.incrementAndGet(), Math::max);
+          concurrentCallsStarted.countDown();
+          try { // a slow provider: each call waits until CONCURRENCY calls are in flight
+            concurrentCallsStarted.await(5, TimeUnit.SECONDS);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+          inFlight.decrementAndGet();
+        });
+
+    service.moderateDueAds();
+
+    assertThat(maxInFlight.get()).isEqualTo(CONCURRENCY);
+    assertThat(gateway.calls).hasSize(6);
+    long published =
+        jdbc.sql("SELECT count(*) FROM ads WHERE status = 'published'").query(Long.class).single();
+    assertThat(published).isEqualTo(6); // the whole batch is done when moderateDueAds returns
+  }
+
   // --- helpers ---
 
   private Ad insertDueAd(String title) {
@@ -161,7 +194,7 @@ class ModerationServiceTest {
   /** Answers per ad id; records calls. Approves by default. */
   static class FakeModerationGateway implements ModerationGateway {
 
-    final List<Long> calls = new ArrayList<>();
+    final List<Long> calls = new CopyOnWriteArrayList<>(); // called from several threads
     private final Map<Long, ModerationResult> answers = new HashMap<>();
     private Long failingId;
     private Runnable duringCheck = () -> {};

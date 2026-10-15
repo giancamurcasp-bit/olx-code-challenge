@@ -15,7 +15,8 @@ moderation:
   worker:
     enabled: true
     poll-interval: 1s
-    batch-size: 10
+    batch-size: 20
+    concurrency: 4 # provider calls in flight; the rate limiter still caps them at 4 req/s
     lease: 30s # if a slow batch outlives it, the stale write is discarded (fencing)
 
 resilience4j:
