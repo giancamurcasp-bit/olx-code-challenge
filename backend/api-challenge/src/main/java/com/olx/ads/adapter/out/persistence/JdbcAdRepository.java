@@ -1,6 +1,7 @@
 package com.olx.ads.adapter.out.persistence;
 
 import com.olx.ads.application.port.AdRepository;
+import com.olx.ads.application.port.PageCursor;
 import com.olx.ads.domain.Ad;
 import com.olx.ads.domain.AdStatus;
 import com.olx.ads.domain.Category;
@@ -75,6 +76,11 @@ public class JdbcAdRepository implements AdRepository {
         .param("id", id)
         .query(JdbcAdRepository::toAd)
         .optional();
+  }
+
+  @Override
+  public List<Ad> findPage(AdStatus status, Category category, PageCursor after, int limit) {
+    return List.of(); // not implemented yet
   }
 
   /**

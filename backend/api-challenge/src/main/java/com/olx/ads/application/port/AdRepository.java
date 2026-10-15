@@ -1,6 +1,8 @@
 package com.olx.ads.application.port;
 
 import com.olx.ads.domain.Ad;
+import com.olx.ads.domain.AdStatus;
+import com.olx.ads.domain.Category;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -21,6 +23,15 @@ public interface AdRepository {
   Optional<Ad> findById(long id);
 
   Optional<Ad> findByIdempotencyKey(String idempotencyKey);
+
+  /**
+   * Returns up to {@code limit} ads with the given status, newest first ({@code created_at DESC, id
+   * DESC}).
+   *
+   * @param category optional; null lists every category
+   * @param after optional; null starts from the newest ad
+   */
+  List<Ad> findPage(AdStatus status, Category category, PageCursor after, int limit);
 
   /**
    * Atomically claims up to {@code limit} pending ads that are due at {@code now}, leasing them

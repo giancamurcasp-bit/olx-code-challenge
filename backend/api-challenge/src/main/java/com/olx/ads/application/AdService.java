@@ -1,7 +1,9 @@
 package com.olx.ads.application;
 
 import com.olx.ads.application.port.AdRepository;
+import com.olx.ads.application.port.PageCursor;
 import com.olx.ads.domain.Ad;
+import com.olx.ads.domain.AdStatus;
 import com.olx.ads.domain.Category;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -63,9 +65,22 @@ public class AdService {
     return new Creation(existing, true);
   }
 
+  /**
+   * Returns one page of ads, newest first, and the cursor of the next page (null on the last one).
+   *
+   * @param category optional; null lists every category
+   * @param after optional; null returns the first page
+   */
+  public AdPage list(AdStatus status, Category category, PageCursor after, int limit) {
+    return new AdPage(List.of(), null); // not implemented yet
+  }
+
   public Ad get(long id) {
     return repository.findById(id).orElseThrow(() -> new AdNotFoundException(id));
   }
+
+  /** A page of ads; {@code next} is null on the last page. */
+  public record AdPage(List<Ad> ads, PageCursor next) {}
 
   /** The created ad, and whether it already existed (a replayed request). */
   public record Creation(Ad ad, boolean replayed) {}

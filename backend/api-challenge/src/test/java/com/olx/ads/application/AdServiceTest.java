@@ -3,9 +3,11 @@ package com.olx.ads.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.olx.ads.application.AdService.AdPage;
 import com.olx.ads.application.AdService.Creation;
 import com.olx.ads.application.AdService.NewAd;
 import com.olx.ads.application.port.AdRepository;
+import com.olx.ads.application.port.PageCursor;
 import com.olx.ads.domain.Ad;
 import com.olx.ads.domain.AdStatus;
 import com.olx.ads.domain.Category;
@@ -16,6 +18,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -116,6 +119,34 @@ class AdServiceTest {
     assertThatThrownBy(() -> service.create(invalid, KEY)).isInstanceOf(InvalidAdException.class);
   }
 
+  // --- list ---
+
+  @Test
+  void pageWithMoreAdsAfterItPointsToTheNextPage() {
+    Ad newest = createPendingAd("key-3", NOW);
+    Ad middle = createPendingAd("key-2", NOW.minusSeconds(1));
+    Ad oldest = createPendingAd("key-1", NOW.minusSeconds(2));
+
+    AdPage first = service.list(AdStatus.PENDING, null, null, 2);
+    AdPage second = service.list(AdStatus.PENDING, null, first.next(), 2);
+
+    assertThat(first.ads()).extracting(Ad::getId).containsExactly(newest.getId(), middle.getId());
+    assertThat(first.next()).isEqualTo(new PageCursor(middle.getCreatedAt(), middle.getId()));
+    assertThat(second.ads()).extracting(Ad::getId).containsExactly(oldest.getId());
+    assertThat(second.next()).isNull();
+  }
+
+  @Test
+  void pageThatExactlyFillsTheLimitHasNoNextPage() {
+    createPendingAd("key-1", NOW);
+    createPendingAd("key-2", NOW.minusSeconds(1));
+
+    AdPage page = service.list(AdStatus.PENDING, null, null, 2);
+
+    assertThat(page.ads()).hasSize(2);
+    assertThat(page.next()).isNull();
+  }
+
   // --- get ---
 
   @Test
@@ -135,6 +166,11 @@ class AdServiceTest {
   // --- helpers ---
 
   private static final String IMAGE = "https://example.com/iphone.jpg";
+
+  private Ad createPendingAd(String key, Instant createdAt) {
+    var atTime = new AdService(repository, Clock.fixed(createdAt, ZoneOffset.UTC));
+    return atTime.create(newAd(), key).ad();
+  }
 
   private static NewAd newAd() {
     return new NewAd(
@@ -190,6 +226,23 @@ class AdServiceTest {
     @Override
     public Optional<Ad> findByIdempotencyKey(String idempotencyKey) {
       return Optional.ofNullable(byIdempotencyKey.get(idempotencyKey));
+    }
+
+    @Override
+    public List<Ad> findPage(AdStatus status, Category category, PageCursor after, int limit) {
+      Comparator<Ad> newestFirst =
+          Comparator.comparing(Ad::getCreatedAt).thenComparing(Ad::getId).reversed();
+      return ads.stream()
+          .filter(ad -> ad.getStatus() == status)
+          .filter(ad -> category == null || ad.getCategory() == category)
+          .filter(
+              ad ->
+                  after == null
+                      || ad.getCreatedAt().isBefore(after.createdAt())
+                      || (ad.getCreatedAt().equals(after.createdAt()) && ad.getId() < after.id()))
+          .sorted(newestFirst)
+          .limit(limit)
+          .toList();
     }
 
     @Override
