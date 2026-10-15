@@ -6,6 +6,7 @@ import com.olx.ads.domain.AdStatus;
 import com.olx.ads.domain.Category;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -53,6 +54,16 @@ public class JdbcAdRepository implements AdRepository {
         .param("id", id)
         .query(JdbcAdRepository::toAd)
         .optional();
+  }
+
+  @Override
+  public List<Ad> claimDue(int limit, Instant now, Duration lease) {
+    throw new UnsupportedOperationException("not implemented yet");
+  }
+
+  @Override
+  public boolean update(Ad ad) {
+    throw new UnsupportedOperationException("not implemented yet");
   }
 
   private static Ad toAd(ResultSet row, int rowNum) throws SQLException {

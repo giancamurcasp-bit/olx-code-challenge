@@ -12,6 +12,11 @@ moderation:
   base-url: ${MODERATION_BASE_URL:http://localhost:8787}
   connect-timeout: 1s
   read-timeout: 3s # the provider's maximum latency is 2s
+  worker:
+    enabled: true
+    poll-interval: 1s
+    batch-size: 10
+    lease: 30s # longer than the read timeout, so a live worker never loses its claim
 
 management:
   endpoints:

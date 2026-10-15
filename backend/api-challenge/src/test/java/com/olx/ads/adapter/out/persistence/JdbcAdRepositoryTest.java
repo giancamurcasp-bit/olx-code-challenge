@@ -6,7 +6,10 @@ import com.olx.ads.TestcontainersConfiguration;
 import com.olx.ads.domain.Ad;
 import com.olx.ads.domain.AdStatus;
 import com.olx.ads.domain.Category;
+import com.olx.ads.domain.ModerationResult;
+import com.olx.ads.domain.RetryPolicy;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -19,6 +22,8 @@ import org.springframework.context.annotation.Import;
 class JdbcAdRepositoryTest {
 
   private static final Instant NOW = Instant.parse("2026-10-15T12:00:00Z");
+  private static final Duration LEASE = Duration.ofSeconds(30);
+  private static final int ANY_LIMIT = 1_000; // other tests share the database
 
   @Autowired JdbcAdRepository repository;
 
@@ -53,5 +58,82 @@ class JdbcAdRepositoryTest {
   @Test
   void returnsEmptyForUnknownId() {
     assertThat(repository.findById(Long.MAX_VALUE)).isEmpty();
+  }
+
+  // --- worker queue ---
+
+  @Test
+  void claimsDueAdsAndLeasesThem() {
+    Ad ad = repository.insert(newAdCreatedAt(NOW));
+
+    List<Ad> claimed = repository.claimDue(ANY_LIMIT, NOW, LEASE);
+
+    assertThat(claimed).extracting(Ad::getId).contains(ad.getId());
+    assertThat(repository.findById(ad.getId()).orElseThrow().getNextAttemptAt())
+        .isEqualTo(NOW.plus(LEASE));
+  }
+
+  @Test
+  void doesNotClaimAdsThatAreNotDueYet() {
+    Ad ad = repository.insert(newAdCreatedAt(NOW.plusSeconds(3600)));
+
+    assertThat(repository.claimDue(ANY_LIMIT, NOW, LEASE))
+        .extracting(Ad::getId)
+        .doesNotContain(ad.getId());
+  }
+
+  @Test
+  void doesNotClaimAnAdAgainUntilItsLeaseExpires() {
+    Ad ad = repository.insert(newAdCreatedAt(NOW));
+    repository.claimDue(ANY_LIMIT, NOW, LEASE);
+
+    assertThat(repository.claimDue(ANY_LIMIT, NOW.plusSeconds(10), LEASE))
+        .extracting(Ad::getId)
+        .doesNotContain(ad.getId());
+    assertThat(repository.claimDue(ANY_LIMIT, NOW.plus(LEASE), LEASE))
+        .extracting(Ad::getId)
+        .contains(ad.getId());
+  }
+
+  @Test
+  void updateStoresTheModerationOutcome() {
+    Ad ad = repository.insert(newAdCreatedAt(NOW));
+    ad.applyModeration(new ModerationResult.Rejected("prohibited_item"), POLICY, NOW);
+
+    assertThat(repository.update(ad)).isTrue();
+
+    Ad found = repository.findById(ad.getId()).orElseThrow();
+    assertThat(found.getStatus()).isEqualTo(AdStatus.REJECTED);
+    assertThat(found.getRejectionReason()).isEqualTo("prohibited_item");
+    assertThat(found.getModerationAttempts()).isEqualTo(1);
+    assertThat(found.getNextAttemptAt()).isNull();
+  }
+
+  @Test
+  void updateDoesNotOverwriteAnAdThatIsNoLongerPending() {
+    Ad inserted = repository.insert(newAdCreatedAt(NOW));
+    Ad firstCopy = repository.findById(inserted.getId()).orElseThrow();
+    Ad lateCopy = repository.findById(inserted.getId()).orElseThrow();
+
+    firstCopy.applyModeration(new ModerationResult.Approved(), POLICY, NOW);
+    repository.update(firstCopy);
+    lateCopy.applyModeration(new ModerationResult.Rejected("prohibited_item"), POLICY, NOW);
+
+    assertThat(repository.update(lateCopy)).isFalse();
+    assertThat(repository.findById(inserted.getId()).orElseThrow().getStatus())
+        .isEqualTo(AdStatus.PUBLISHED);
+  }
+
+  private static final RetryPolicy POLICY =
+      new RetryPolicy(3, Duration.ofSeconds(1), Duration.ofMinutes(5), () -> 0.0);
+
+  private static Ad newAdCreatedAt(Instant createdAt) {
+    return Ad.create(
+        "Bicicleta aro 29 Caloi",
+        "Pouco usada, revisada.",
+        new BigDecimal("1250.50"),
+        Category.ESPORTES,
+        List.of("https://example.com/1.jpg"),
+        createdAt);
   }
 }
