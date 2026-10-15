@@ -2,8 +2,6 @@
 
 REST service for **creating and listing marketplace ads**, with **automatic moderation** through an external moderation API before an ad is published.
 
-> 🚧 **Work in progress.** This README describes the target design; sections marked _(planned)_ are not implemented yet.
-
 - Technical decisions, trade-offs and interpretations: [`DECISIONS.md`](./DECISIONS.md)
 - How AI was used: [`AI_USAGE.md`](./AI_USAGE.md)
 - Moderation API (mock) contract: [`../api-mock/docs-candidato/API.md`](../api-mock/docs-candidato/API.md)
@@ -57,11 +55,23 @@ This starts:
 | --- | --- |
 | Ads API | `http://localhost:8080` |
 | Health | `http://localhost:8080/actuator/health` |
-| Swagger UI _(planned)_ | `http://localhost:8080/swagger-ui.html` |
+| Swagger UI | `http://localhost:8080/swagger-ui.html` (OpenAPI JSON at `/v3/api-docs`) |
 | PostgreSQL | `localhost:5433` (not 5432, to avoid clashing with a local Postgres) |
 | Moderation mock | `http://localhost:8787` |
 
-_(planned)_ On startup, the 57 example ads from the mock's seed are imported as `pending` and moderated by the worker.
+On startup, the 57 example ads from the mock's seed are imported as `pending` and moderated by the worker within seconds; restarts don't import them again. To start from an empty database: `docker compose down -v`.
+
+### Try it
+
+```bash
+# create (the Idempotency-Key is required; reuse it only when retrying the same ad)
+curl -i localhost:8080/ads -H 'Content-Type: application/json' -H "Idempotency-Key: $(uuidgen)" \
+  -d '{"title":"Celular, chama no whatsapp","description":"Novo","price":900,"category":"eletronicos","images":["https://example.com/a.jpg"]}'
+
+curl localhost:8080/ads/{id}                         # pending → rejected, with rejection_reason
+curl 'localhost:8080/ads?category=moveis&limit=5'    # published ads; follow next_cursor for more
+curl 'localhost:8080/ads?status=rejected'
+```
 
 ### Running the app outside Docker
 
@@ -86,9 +96,12 @@ Coverage report: `build/reports/jacoco/test/html/index.html`.
 
 ---
 
-## API contract _(planned)_
+## API contract
 
-The full, interactive contract is served by OpenAPI at `/swagger-ui.html` (JSON at `/v3/api-docs`). Summary:
+The full, interactive contract is served by OpenAPI at `/swagger-ui.html` (JSON at `/v3/api-docs`); a test keeps it in line with the real responses. Summary:
+
+- JSON in `snake_case`, dates in ISO-8601 UTC. Errors are RFC 9457 problem details (`application/problem+json`); validation errors add `errors: [{field, message}]`.
+- Every response carries an `X-Request-Id` (the caller's, if sent and safe to log), also present in the logs.
 
 ### `POST /ads` — create an ad
 
@@ -171,6 +184,6 @@ Returns the ad in any status, including moderation info:
 
 ## Tech stack
 
-Java 25 · Spring Boot 4.1 · Gradle 9 · PostgreSQL · Flyway · Spring JdbcClient · Resilience4j · Actuator/Micrometer · springdoc-openapi · JUnit 5 · Testcontainers · WireMock · ArchUnit · JaCoCo · Spotless
+Java 25 · Spring Boot 4.1 · Gradle 9 · PostgreSQL · Flyway · Spring JdbcClient · Resilience4j · ShedLock · Actuator/Micrometer · springdoc-openapi · JUnit 5 · Testcontainers · WireMock · ArchUnit · JaCoCo · Spotless
 
 Rationale for each choice: [`DECISIONS.md` → Stack](./DECISIONS.md#9-stack).

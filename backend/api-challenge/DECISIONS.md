@@ -176,22 +176,23 @@ Ours (`400`, `ProblemDetail`):
 
 ```
 com.olx.ads
-├── domain/                 # pure Java: Ad, AdStatus, Category, ModerationResult
-├── application/            # AdService (create/list/get), ModerationService (process one ad)
-│   └── port/               # AdRepository, ModerationGateway
+├── domain/                 # pure Java: Ad, AdStatus, Category, ModerationResult, RetryPolicy
+├── application/            # AdService (create/list/get), ModerationService (claim and moderate a batch)
+│   └── port/               # AdRepository, ModerationGateway, PageCursor
 ├── adapter/
-│   ├── in/web/             # AdController, DTOs, ProblemDetail handler
-│   ├── in/scheduler/       # ModerationWorker (@Scheduled → ModerationService)
+│   ├── in/web/             # AdController, DTOs, ProblemDetail handler, request id, OpenAPI
+│   ├── in/scheduler/       # ModerationWorker (@Scheduled + ShedLock → ModerationService)
+│   ├── in/seed/            # SeedImporter (startup → AdService)
 │   ├── out/persistence/    # JdbcAdRepository
-│   └── out/moderation/     # HttpModerationGateway (RestClient + RateLimiter + CircuitBreaker)
+│   └── out/moderation/     # HttpModerationGateway (RestClient), ResilientModerationGateway (rate limiter + circuit breaker)
 └── config/
 ```
 
 **Why:**
-- **Business rules isolated from infrastructure.** `Ad` owns its state transitions and the retry policy (`publish`, `reject`, `scheduleRetry`, `fail`) with no Spring or SQL, so the core logic is unit-tested without mocks.
+- **Business rules isolated from infrastructure.** `Ad` owns its validation and state transitions (`create`, `applyModeration` with the `RetryPolicy`) with no Spring or SQL, so the core logic is unit-tested without mocks.
 - **The external dependency is a real boundary.** `ModerationGateway` is faked in application tests and implemented over HTTP with resilience in its adapter. Swapping the provider (or moving to a broker, see 1.1) touches only an adapter.
 - **Familiar to new readers.** It's a well-known layout, so someone new to the repo knows where to look.
-- **Enforced, not just conventional:** an ArchUnit test checks the dependency rule (`domain` depends on nothing; `application` doesn't depend on `adapter`).
+- **Enforced, not just conventional:** an ArchUnit test checks the dependency rule (`domain` depends only on the JDK; `application` doesn't depend on `adapter`; inbound and outbound adapters don't depend on each other).
 
 **What was deliberately left out**, to avoid abstractions without a purpose:
 - **Input-port interfaces per use case** (`CreateAdUseCase` + `Impl`): controllers call concrete application services.
@@ -213,7 +214,7 @@ com.olx.ads
 | Worker lock | ShedLock (JDBC provider) | One worker run at a time across instances, on the existing PostgreSQL (section 3). Small, widely used for exactly this with `@Scheduled` |
 | API / errors | Bean Validation, `ProblemDetail`, springdoc-openapi | Documented contract via Swagger UI |
 | Logging | SLF4J + Logback (Boot default), Boot's built-in structured logging | No extra library. JSON (ECS) in Docker, plain text locally |
-| Observability | Spring Boot Actuator + Micrometer | `/actuator/health` for the Compose healthcheck and circuit-breaker state; metrics for moderation outcomes, pending-queue size and moderation latency, to see the bottleneck (the provider's 5 req/s) |
+| Observability | Spring Boot Actuator + Micrometer, structured logs | `/actuator/health`; `/actuator/metrics` with HTTP and Resilience4j metrics (circuit-breaker state and failure rate, rate-limiter permits). Moderation outcomes and provider latency are in the logs, per attempt, with `ad_id` (section 6). Custom metrics are listed under "more time" |
 | Tests | JUnit 5, AssertJ, Testcontainers, WireMock, Awaitility, ArchUnit | Real Postgres: the queries are Postgres-specific. ArchUnit enforces the architecture's dependency rule |
 | Coverage | JaCoCo | Reported, not gated: what is tested matters more than the percentage |
 | Formatting | Spotless (google-java-format) | Consistent formatting, so diffs only show real changes |
@@ -265,6 +266,11 @@ _To be filled in at the end._
 
 ## What I would do with more time
 
-- **Authentication and ad ownership** (4.1): author taken from the user's credentials; non-published ads visible only to their author.
-
-_To be completed at the end._
+- **Authentication and ad ownership** (4.1): author taken from the user's credentials; non-published ads visible only to their author. Then idempotency keys per author, and a rate limit per user on `POST /ads`.
+- **Notify the seller** (push or email) when moderation finishes, by publishing an event on each status change (1, 1.1), so only integrations need to poll.
+- **Moderation metrics and alerts:** outcomes per status, provider latency, `pending` queue size and age of the oldest pending ad, with alerts on queue age and on the circuit staying open. Today these are in the logs only.
+- **Redrive for `moderation_failed`:** an admin action to put ads back in the queue once the cause is fixed (e.g. after a provider bug).
+- **Pause the worker after a `429`** for the `Retry-After`, in case another client shares the provider's quota (3). Not needed so far: 0 `429`s measured, even with two instances.
+- **Expire idempotency keys** (e.g. after 24h) instead of keeping them forever (10).
+- **Edge limits:** request body size and per-client rate limits at the gateway (5).
+- **Moderation history table**, if decisions must be auditable (seller disputes), since logs are not a system of record (6).

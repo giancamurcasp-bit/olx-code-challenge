@@ -8,7 +8,7 @@ How AI was used in this project, what it got wrong, and how its output was valid
 
 | Tool | Used for |
 | --- | --- |
-| Claude Code (Claude Opus) in the terminal | Analyzing the challenge and the mock, discussing design decisions, drafting `DECISIONS.md` / `README.md`, and implementation (in progress) |
+| Claude Code (Claude Opus) in the terminal | Analyzing the challenge and the mock, discussing design decisions, drafting `DECISIONS.md` / `README.md`, implementation, and checking the running stack |
 | ai-memory (MCP server + hooks) | Long-term memory across sessions: captures session context and hands off where the last session stopped, so I don't re-explain the project every time. Because it is an MCP server, any MCP-compatible agent can use it, so context carries over when I switch AI providers (together with the tool-agnostic `AGENTS.md`). `DECISIONS.md` and `AGENTS.md` stay the source of truth; memory is only context |
 
 ## How I worked with it
@@ -51,4 +51,5 @@ How AI was used in this project, what it got wrong, and how its output was valid
   - **Design review while writing the migration:** the single listing index from `DECISIONS.md` couldn't efficiently serve the listing without a category filter; split into two indexes and corrected the doc.
   - **Security and race-condition review on the running stack:** I asked the AI to attack the API, not just read the code. It confirmed findings with real requests instead of guessing: a NUL character returned `500` (PostgreSQL can't store it) and a 5 MB description was accepted. Each fix started with a failing test, then was re-checked against the stack (`400` for both; 5 concurrent requests with the same `Idempotency-Key` created one ad). Findings judged low-risk (public metrics, per-instance rate limiter) were documented instead of fixed.
   - **Measuring, not assuming, after parallelizing moderation:** the unit test proved 4 calls ran at once, but a run of 40 ads against the stack showed 23 `429`s, where the sequential version had none. The rate limiter's fixed 1s periods let 8 calls through around a period boundary, while the provider counts a sliding window. Spreading permits to 1 every 250ms brought it to 0. A reading of the code wouldn't have caught it.
-  - _Implementation: to be filled in._
+  - **Implementation rhythm:** each feature went in as a pair of commits, a failing test (`test:`) and the code that makes it pass (`feat:`/`fix:`), so the history shows the spec before the implementation. After each slice, the agent rebuilt the Docker stack and exercised it with real requests.
+  - **Docs checked against the code before submitting:** a final pass compared every claim in `README.md` and `DECISIONS.md` with the code and the running app. It found promises that were never built (custom metrics, circuit-breaker state in the health check) and a stale architecture section, which were corrected instead of left as aspirations. The generated OpenAPI contract also didn't match the real responses (camelCase fields, `200` instead of `201`), which a contract test now prevents.
