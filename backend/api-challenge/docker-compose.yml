@@ -16,7 +16,7 @@ services:
   postgres:
     image: postgres:18-alpine
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432" # local only: the credentials below are for development
     environment:
       POSTGRES_DB: ads
       POSTGRES_USER: ads
