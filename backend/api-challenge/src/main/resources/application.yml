@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: ads-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/ads}
+    username: ${DB_USERNAME:ads}
+    password: ${DB_PASSWORD:ads}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+
+logging:
+  structured:
+    format:
+      console: ecs

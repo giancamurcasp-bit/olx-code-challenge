@@ -96,7 +96,7 @@ The usual objection is that an outage exhausts every ad's attempts. Here, **whil
   - stable when ads are inserted during paging, unlike `OFFSET`;
   - constant cost per page (index seek);
   - `id` breaks ties: the seed has 57 ads but only 28 distinct `created_at` values.
-- **Trade-off:** no "jump to page N" and no total count, which is fine for a feed. Index: `(status, category, created_at DESC, id DESC)`.
+- **Trade-off:** no "jump to page N" and no total count, which is fine for a feed. Indexes: `(status, created_at DESC, id DESC)` and `(status, category, created_at DESC, id DESC)`: a single index with `category` second can't serve the unfiltered listing efficiently.
 
 ### 4.1 Authentication and ad ownership: out of scope
 
@@ -179,7 +179,7 @@ com.olx.ads
 
 | Concern | Choice | Why |
 | --- | --- | --- |
-| Runtime | Java 21, Spring Boot 3, Gradle | Records for DTOs; Lombok only where records don't fit |
+| Runtime | Java 25 (LTS), Spring Boot 4.1, Gradle 9 (Kotlin DSL) | Current LTS and Boot generation. The Gradle daemon is pinned to Java 25 and auto-provisioned, so the build doesn't depend on the local JDK. Records for DTOs; Lombok only where records don't fit |
 | Database | PostgreSQL + Flyway | `SKIP LOCKED` powers the queue; plain SQL migrations |
 | Persistence | Spring `JdbcClient` | No JPA entity duplicating the domain model (section 8); native SQL for keyset pagination and the worker claim |
 | HTTP / resilience | `RestClient`, Resilience4j (`RateLimiter`, `CircuitBreaker`) | No `Retry` (section 3) |

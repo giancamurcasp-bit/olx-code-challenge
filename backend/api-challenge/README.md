@@ -43,7 +43,7 @@ Why async: the moderation API has 100–2000 ms latency, ~20% error rate and a 5
 
 ---
 
-## Running _(planned)_
+## Running
 
 **Requirements:** Docker and Docker Compose.
 
@@ -56,26 +56,33 @@ This starts:
 | Service | URL |
 | --- | --- |
 | Ads API | `http://localhost:8080` |
-| Swagger UI | `http://localhost:8080/swagger-ui.html` |
-| PostgreSQL | `localhost:5432` |
+| Health | `http://localhost:8080/actuator/health` |
+| Swagger UI _(planned)_ | `http://localhost:8080/swagger-ui.html` |
+| PostgreSQL | `localhost:5433` (not 5432, to avoid clashing with a local Postgres) |
 | Moderation mock | `http://localhost:8787` |
 
-On startup, the 57 example ads from the mock's seed are imported as `pending` and moderated by the worker.
+_(planned)_ On startup, the 57 example ads from the mock's seed are imported as `pending` and moderated by the worker.
 
-### Running locally (without Docker for the app) _(planned)_
+### Running the app outside Docker
 
-Requires Java 21.
+Requires any JDK 17+ to launch Gradle; the Gradle daemon and the build use Java 25, downloaded automatically if missing.
 
 ```bash
+docker compose up -d postgres moderation-api
 ./gradlew bootRun
 ```
 
-### Tests and coverage _(planned)_
+### Tests and coverage
 
 ```bash
-./gradlew test                  # requires Docker (Testcontainers)
-./gradlew jacocoTestReport      # report at build/reports/jacoco/test/html/index.html
+./gradlew test       # requires Docker (Testcontainers); also generates the coverage report
+./gradlew build      # formatting check (Spotless) + tests
 ```
+
+Coverage report: `build/reports/jacoco/test/html/index.html`.
+
+> **Colima / non-default Docker socket:** Testcontainers looks for `/var/run/docker.sock`. With Colima, export
+> `DOCKER_HOST=unix://$HOME/.colima/default/docker.sock` and `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock` before running the tests.
 
 ---
 
@@ -155,6 +162,6 @@ Returns the ad in any status, including moderation info:
 
 ## Tech stack
 
-Java 21 · Spring Boot 3 · Gradle · PostgreSQL · Flyway · Spring JdbcClient · Resilience4j · Actuator/Micrometer · springdoc-openapi · JUnit 5 · Testcontainers · WireMock · ArchUnit · JaCoCo · Spotless
+Java 25 · Spring Boot 4.1 · Gradle 9 · PostgreSQL · Flyway · Spring JdbcClient · Resilience4j · Actuator/Micrometer · springdoc-openapi · JUnit 5 · Testcontainers · WireMock · ArchUnit · JaCoCo · Spotless
 
 Rationale for each choice: [`DECISIONS.md` → Stack](./DECISIONS.md#9-stack).

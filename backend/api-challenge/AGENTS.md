@@ -49,7 +49,7 @@ Ads API for a marketplace: create, list and detail ads, with asynchronous modera
 - Never edit a Flyway migration that has been committed; add a new one.
 
 ### Code
-- Java 21: records for DTOs and value objects. Lombok only where records don't fit.
+- Java 25: records for DTOs and value objects. Lombok only where records don't fit.
 - `BigDecimal` for money, `Instant` for time. Constructor injection only.
 - Logging: SLF4J, with `ad_id` / `request_id` in the MDC. Never log full request bodies.
 
@@ -69,7 +69,8 @@ Ads API for a marketplace: create, list and detail ads, with asynchronous modera
 
 ```bash
 docker compose up --build    # app + PostgreSQL + moderation mock
-./gradlew test               # requires Docker (Testcontainers)
+./gradlew build              # Spotless check + tests (Testcontainers requires Docker)
+./gradlew test               # tests only
 ./gradlew jacocoTestReport   # coverage report
 ./gradlew spotlessApply      # format code (run before committing)
 ```

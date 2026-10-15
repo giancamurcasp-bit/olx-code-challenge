@@ -42,4 +42,7 @@ How AI was used in this project, what it got wrong, and how its output was valid
 ## How I validated
 
 - **Design:** by challenging every recommendation with "what breaks if...?" and checking claims against the mock's code and the seed data.
-- **Code:** _to be filled in during implementation (tests, running against the real mock, reviewing generated code)._
+- **Code:**
+  - **Scaffold:** I had the agent run the full build (formatting, ArchUnit rules, Spring context against a real Postgres via Testcontainers) and `docker compose up`, checking that the app reports `UP`, the migration is applied and logs are JSON. Running it caught two problems a read-through wouldn't: a pinned formatter version that crashed in the build's JVM (switched to Spotless's default) and a port clash with another local Postgres (moved to 5433).
+  - **Design review while writing the migration:** the single listing index from `DECISIONS.md` couldn't efficiently serve the listing without a category filter; split into two indexes and corrected the doc.
+  - _Implementation: to be filled in._
