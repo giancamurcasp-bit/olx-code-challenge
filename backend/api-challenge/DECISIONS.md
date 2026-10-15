@@ -185,8 +185,10 @@ com.olx.ads
 | HTTP / resilience | `RestClient`, Resilience4j (`RateLimiter`, `CircuitBreaker`) | No `Retry` (section 3) |
 | API / errors | Bean Validation, `ProblemDetail`, springdoc-openapi | Documented contract via Swagger UI |
 | Logging | SLF4J + Logback (Boot default), Boot's built-in structured logging | No extra library. JSON (ECS) in Docker, plain text locally |
+| Observability | Spring Boot Actuator + Micrometer | `/actuator/health` for the Compose healthcheck and circuit-breaker state; metrics for moderation outcomes, pending-queue size and moderation latency, to see the bottleneck (the provider's 5 req/s) |
 | Tests | JUnit 5, AssertJ, Testcontainers, WireMock, Awaitility, ArchUnit | Real Postgres: the queries are Postgres-specific. ArchUnit enforces the architecture's dependency rule |
 | Coverage | JaCoCo | Reported, not gated: what is tested matters more than the percentage |
+| Formatting | Spotless (google-java-format) | Consistent formatting, so diffs only show real changes |
 | Run | Docker Compose (app + Postgres + mock) | One command |
 
 ---

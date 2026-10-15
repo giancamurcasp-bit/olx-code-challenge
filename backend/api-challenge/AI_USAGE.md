@@ -17,7 +17,8 @@ How AI was used in this project, what it got wrong, and how its output was valid
 2. **AI as a sparring partner, not an oracle.** I asked for a recommendation with the trade-offs, then challenged it. Several decisions changed because of that (see below).
 3. **Verify claims against the source.** Anything about the mock or the data was checked against `server.js` and the seed file, not taken from the AI's summary.
 4. **I own every line.** The AI drafts; I decide what stays, and I review every change before committing.
-5. **Project rules written down for the agent.** [`AGENTS.md`](./AGENTS.md) gives any AI agent the architecture, testing and documentation rules, and points it to `DECISIONS.md` as the source of truth. It is tool-agnostic so I can switch providers; `CLAUDE.md` only imports it.
+5. **Tests first as the spec.** For domain logic, the moderation adapter and pagination, the test is written (or reviewed by me) before the implementation, and the AI may not change it to make it pass. Generated code is checked against expectations I defined, not ones the AI inferred from its own implementation.
+6. **Project rules written down for the agent.** [`AGENTS.md`](./AGENTS.md) gives any AI agent the architecture, testing and documentation rules, and points it to `DECISIONS.md` as the source of truth. It is tool-agnostic so I can switch providers; `CLAUDE.md` only imports it.
 
 ## Examples
 

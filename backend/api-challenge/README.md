@@ -155,6 +155,6 @@ Returns the ad in any status, including moderation info:
 
 ## Tech stack
 
-Java 21 · Spring Boot 3 · Gradle · PostgreSQL · Flyway · Spring JdbcClient · Resilience4j · springdoc-openapi · JUnit 5 · Testcontainers · WireMock · ArchUnit · JaCoCo
+Java 21 · Spring Boot 3 · Gradle · PostgreSQL · Flyway · Spring JdbcClient · Resilience4j · Actuator/Micrometer · springdoc-openapi · JUnit 5 · Testcontainers · WireMock · ArchUnit · JaCoCo · Spotless
 
 Rationale for each choice: [`DECISIONS.md` → Stack](./DECISIONS.md#9-stack).

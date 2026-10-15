@@ -54,6 +54,8 @@ Ads API for a marketplace: create, list and detail ads, with asynchronous modera
 - Logging: SLF4J, with `ad_id` / `request_id` in the MDC. Never log full request bodies.
 
 ### Tests
+- **Test-first for domain logic, the moderation adapter and pagination:** write the failing test, confirm it fails for the right reason, then implement. Tests after are fine for configuration and wiring.
+- Never change a test to make it pass. If the test seems wrong, stop and say so.
 - Test behavior, not implementation. Name tests after the behavior (`rejectsTitleShorterThan10Chars`).
 - Domain: plain unit tests. Application: a fake `ModerationGateway`. Moderation adapter: WireMock. Persistence/API: Testcontainers PostgreSQL, **never H2**.
 - Async assertions with Awaitility, never `Thread.sleep`.
@@ -69,4 +71,5 @@ Ads API for a marketplace: create, list and detail ads, with asynchronous modera
 docker compose up --build    # app + PostgreSQL + moderation mock
 ./gradlew test               # requires Docker (Testcontainers)
 ./gradlew jacocoTestReport   # coverage report
+./gradlew spotlessApply      # format code (run before committing)
 ```
