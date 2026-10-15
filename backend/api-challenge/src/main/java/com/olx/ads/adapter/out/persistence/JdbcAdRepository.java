@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -44,6 +45,11 @@ public class JdbcAdRepository implements AdRepository {
         .param("updatedAt", toTimestamp(ad.getUpdatedAt()))
         .query(JdbcAdRepository::toAd)
         .single();
+  }
+
+  @Override
+  public Optional<Ad> findById(long id) {
+    throw new UnsupportedOperationException("not implemented yet");
   }
 
   private static Ad toAd(ResultSet row, int rowNum) throws SQLException {

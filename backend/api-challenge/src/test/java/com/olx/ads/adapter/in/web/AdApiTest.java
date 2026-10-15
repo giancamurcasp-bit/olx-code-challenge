@@ -3,6 +3,7 @@ package com.olx.ads.adapter.in.web;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.nullValue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -54,6 +55,23 @@ class AdApiTest {
         .andExpect(jsonPath("$.created_at").isString());
   }
 
+  @Test
+  void locationOfACreatedAdReturnsThatAd() throws Exception {
+    String location =
+        mockMvc
+            .perform(post("/ads").contentType(MediaType.APPLICATION_JSON).content(json(validAd())))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getHeader("Location");
+
+    mockMvc
+        .perform(get(location))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.title").value("iPhone 13 128GB azul"))
+        .andExpect(jsonPath("$.status").value("pending"));
+  }
+
   // --- validation ---
 
   @ParameterizedTest(name = "{0}")
@@ -87,6 +105,22 @@ class AdApiTest {
         .perform(post("/ads").contentType(MediaType.APPLICATION_JSON).content("{\"title\":"))
         .andExpect(status().isBadRequest())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+  }
+
+  // --- detail ---
+
+  @Test
+  void returnsNotFoundForUnknownAd() throws Exception {
+    mockMvc
+        .perform(get("/ads/" + Long.MAX_VALUE))
+        .andExpect(status().isNotFound())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+        .andExpect(jsonPath("$.detail").value("ad " + Long.MAX_VALUE + " not found"));
+  }
+
+  @Test
+  void rejectsNonNumericId() throws Exception {
+    mockMvc.perform(get("/ads/abc")).andExpect(status().isBadRequest());
   }
 
   // --- helpers ---

@@ -23,7 +23,7 @@ class JdbcAdRepositoryTest {
   @Autowired JdbcAdRepository repository;
 
   @Test
-  void insertsANewAdAndReturnsItAsStored() {
+  void insertsANewAdAndReadsItBack() {
     Ad ad =
         Ad.create(
             "Bicicleta aro 29 Caloi",
@@ -33,9 +33,10 @@ class JdbcAdRepositoryTest {
             List.of("https://example.com/1.jpg", "https://example.com/2.jpg"),
             NOW);
 
-    Ad found = repository.insert(ad);
+    Ad inserted = repository.insert(ad);
+    Ad found = repository.findById(inserted.getId()).orElseThrow();
 
-    assertThat(found.getId()).isNotNull();
+    assertThat(inserted.getId()).isNotNull();
     assertThat(found.getTitle()).isEqualTo("Bicicleta aro 29 Caloi");
     assertThat(found.getDescription()).isEqualTo("Pouco usada, revisada.");
     assertThat(found.getPrice()).isEqualByComparingTo("1250.50");
@@ -47,5 +48,10 @@ class JdbcAdRepositoryTest {
     assertThat(found.getNextAttemptAt()).isEqualTo(NOW);
     assertThat(found.getCreatedAt()).isEqualTo(NOW);
     assertThat(found.getUpdatedAt()).isEqualTo(NOW);
+  }
+
+  @Test
+  void returnsEmptyForUnknownId() {
+    assertThat(repository.findById(Long.MAX_VALUE)).isEmpty();
   }
 }
