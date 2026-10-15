@@ -2,8 +2,6 @@
 
 How AI was used in this project, what it got wrong, and how its output was validated.
 
-> Living document: updated as the implementation progresses.
-
 ## Tools
 
 | Tool | Used for |
@@ -55,3 +53,4 @@ How AI was used in this project, what it got wrong, and how its output was valid
   - **Implementation rhythm:** each feature went in as a pair of commits, a failing test (`test:`) and the code that makes it pass (`feat:`/`fix:`), so the history shows the spec before the implementation. After each slice, the agent rebuilt the Docker stack and exercised it with real requests.
   - **Testing the tests:** tests written after the code pass immediately, which proves little. For the rate-under-concurrency test, the old "4 per 1s" setting was put back temporarily: the test failed 3 out of 3 runs, and passed 5 out of 5 with the real setting, so it catches the bug and isn't flaky.
   - **Docs checked against the code before submitting:** a final pass compared every claim in `README.md` and `DECISIONS.md` with the code and the running app. It found promises that were never built (custom metrics, circuit-breaker state in the health check) and a stale architecture section, which were corrected instead of left as aspirations. The generated OpenAPI contract also didn't match the real responses (camelCase fields, `200` instead of `201`), which a contract test now prevents.
+  - **Final review for missing logs and test scenarios:** asked the AI for a last pass over failure paths. It added logs for circuit-breaker transitions, worker runs, calls not sent for lack of a rate-limit permit and unexpected errors (which previously returned Spring's default error body instead of a problem), and tests for retries end to end, circuit recovery and `Retry-After` fallbacks. Running the suite repeatedly exposed a flaky test: the worker's first run fired at startup and claimed the test's ad. It now waits one poll interval; the suite passed 3 out of 3 runs afterwards.

@@ -96,6 +96,18 @@ docker compose up -d postgres moderation-api
 
 Coverage report: `build/reports/jacoco/test/html/index.html`.
 
+What is tested, and why (critical flows first):
+
+| Flow | Tests |
+| --- | --- |
+| Validation rules (price > 0, title 10–100 characters, images, control characters) | `AdCreationTest` (domain, no Spring), `AdApiTest` (`400` problem details) |
+| Moderation outcomes, retries, backoff and the attempt cap | `AdModerationTest`, `RetryPolicyTest`, `ModerationServiceTest` (fake gateway) |
+| The moderation client: `429` + `Retry-After`, `500`, timeouts, the docs' `reason` field; rate limit under concurrency and the circuit breaker | `HttpModerationGatewayTest` (WireMock), `ResilientModerationGatewayTest` |
+| Create → worker → `published`/`rejected` with its reason, including a retry | `ModerationFlowTest` (end to end: Postgres + WireMock) |
+| Queue claim and lease fencing, concurrent idempotent inserts, keyset pagination with tied dates | `JdbcAdRepositoryTest`, `JdbcAdRepositoryListingTest` (Testcontainers Postgres) |
+| Idempotency, listing filters, cursor paging, detail and `404` | `AdServiceTest`, `AdApiTest`, `AdListingApiTest` |
+| One worker across instances, seed import, contract matches responses, dependency rule | `ModerationWorkerLockTest`, `SeedImporterTest`, `OpenApiContractTest`, `ArchitectureTest` |
+
 > **Colima / non-default Docker socket:** Testcontainers looks for `/var/run/docker.sock`. With Colima, export
 > `DOCKER_HOST=unix://$HOME/.colima/default/docker.sock` and `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock` before running the tests.
 
