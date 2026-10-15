@@ -31,21 +31,32 @@ public class Ad {
   private Instant updatedAt;
 
   private Ad(
+      Long id,
       String title,
       String description,
       BigDecimal price,
       Category category,
       List<String> images,
-      Instant now) {
+      AdStatus status,
+      String rejectionReason,
+      int moderationAttempts,
+      Instant nextAttemptAt,
+      String lastModerationError,
+      Instant createdAt,
+      Instant updatedAt) {
+    this.id = id;
     this.title = title;
     this.description = description;
     this.price = price;
     this.category = category;
     this.images = images;
-    this.status = AdStatus.PENDING;
-    this.nextAttemptAt = now;
-    this.createdAt = now;
-    this.updatedAt = now;
+    this.status = status;
+    this.rejectionReason = rejectionReason;
+    this.moderationAttempts = moderationAttempts;
+    this.nextAttemptAt = nextAttemptAt;
+    this.lastModerationError = lastModerationError;
+    this.createdAt = createdAt;
+    this.updatedAt = updatedAt;
   }
 
   /** Creates a new ad, pending and due for moderation immediately. */
@@ -59,9 +70,56 @@ public class Ad {
     String trimmedTitle = validTitle(title);
     validateDescription(description);
     validatePrice(price);
-    require(category != null, "category is required");
+    require(category != null, "category", "is required");
     validateImages(images);
-    return new Ad(trimmedTitle, description, price, category, List.copyOf(images), now);
+    return new Ad(
+        null,
+        trimmedTitle,
+        description,
+        price,
+        category,
+        List.copyOf(images),
+        AdStatus.PENDING,
+        null,
+        0,
+        now,
+        null,
+        now,
+        now);
+  }
+
+  /**
+   * Rebuilds an ad that already exists, e.g. when loading it from storage. Creation rules are not
+   * re-applied: the ad was valid when created.
+   */
+  public static Ad restore(
+      long id,
+      String title,
+      String description,
+      BigDecimal price,
+      Category category,
+      List<String> images,
+      AdStatus status,
+      String rejectionReason,
+      int moderationAttempts,
+      Instant nextAttemptAt,
+      String lastModerationError,
+      Instant createdAt,
+      Instant updatedAt) {
+    return new Ad(
+        id,
+        title,
+        description,
+        price,
+        category,
+        List.copyOf(images),
+        status,
+        rejectionReason,
+        moderationAttempts,
+        nextAttemptAt,
+        lastModerationError,
+        createdAt,
+        updatedAt);
   }
 
   /**
@@ -168,35 +226,37 @@ public class Ad {
   // --- validation ---
 
   private static String validTitle(String title) {
-    require(title != null, "title is required");
+    require(title != null, "title", "is required");
     String trimmed = title.strip();
     int length = trimmed.codePointCount(0, trimmed.length());
     require(
         length >= MIN_TITLE_LENGTH && length <= MAX_TITLE_LENGTH,
-        "title must have between %d and %d characters"
-            .formatted(MIN_TITLE_LENGTH, MAX_TITLE_LENGTH));
+        "title",
+        "must have between %d and %d characters".formatted(MIN_TITLE_LENGTH, MAX_TITLE_LENGTH));
     return trimmed;
   }
 
   private static void validateDescription(String description) {
-    require(description != null && !description.isBlank(), "description is required");
+    require(description != null && !description.isBlank(), "description", "is required");
   }
 
   private static void validatePrice(BigDecimal price) {
-    require(price != null, "price is required");
-    require(price.signum() > 0, "price must be greater than zero");
+    require(price != null, "price", "is required");
+    require(price.signum() > 0, "price", "must be greater than zero");
     require(
         price.stripTrailingZeros().scale() <= MAX_PRICE_SCALE,
-        "price must have at most %d decimal places".formatted(MAX_PRICE_SCALE));
-    require(price.precision() - price.scale() <= MAX_PRICE_INTEGER_DIGITS, "price is too large");
+        "price",
+        "must have at most %d decimal places".formatted(MAX_PRICE_SCALE));
+    require(price.precision() - price.scale() <= MAX_PRICE_INTEGER_DIGITS, "price", "is too large");
   }
 
   private static void validateImages(List<String> images) {
     require(
         images != null && !images.isEmpty() && images.size() <= MAX_IMAGES,
-        "an ad must have between 1 and %d images".formatted(MAX_IMAGES));
+        "images",
+        "must have between 1 and %d images".formatted(MAX_IMAGES));
     images.forEach(
-        image -> require(isAbsoluteHttpUrl(image), "image must be an absolute http(s) URL"));
+        image -> require(isAbsoluteHttpUrl(image), "images", "must be absolute http(s) URLs"));
   }
 
   private static boolean isAbsoluteHttpUrl(String value) {
@@ -213,9 +273,9 @@ public class Ad {
     }
   }
 
-  private static void require(boolean condition, String message) {
+  private static void require(boolean condition, String field, String message) {
     if (!condition) {
-      throw new InvalidAdException(message);
+      throw new InvalidAdException(field, message);
     }
   }
 }

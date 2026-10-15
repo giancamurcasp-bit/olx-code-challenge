@@ -120,6 +120,9 @@ Ours (`400`, `ProblemDetail`):
 | `category` | One of the 6 moderation categories |
 | `images` | 1–10 absolute `http(s)` URLs |
 
+**Where each rule lives:** the request DTO (Bean Validation) only checks presence and simple bounds; the precise rules (title length in characters, price scale, image URLs, category) live in the domain, defined once and applied to every way an ad is created (API, seed). Both produce the same `400` with `errors: [{field, message}]`. Bean Validation's `@Size` would also be wrong for titles: it counts UTF-16 units, so an emoji counts as 2.
+- **Trade-off:** the domain stops at the first broken rule, and only runs after the DTO checks pass, so a request with several mistakes may not report all of them at once.
+
 **Left to moderation:** contact info, prohibited items and price range per category. That policy belongs to another service, and duplicating it creates two sources of truth.
 
 **Conscious duplication:** the category list. An invalid category could never be moderated (the mock returns `400`), so failing fast is better.
