@@ -11,7 +11,9 @@ public class Ad {
 
   static final int MIN_TITLE_LENGTH = 10;
   static final int MAX_TITLE_LENGTH = 100;
+  static final int MAX_DESCRIPTION_LENGTH = 5000;
   static final int MAX_IMAGES = 10;
+  static final int MAX_IMAGE_URL_LENGTH = 2048;
   static final int MAX_PRICE_SCALE = 2;
   static final int MAX_PRICE_INTEGER_DIGITS = 10; // NUMERIC(12,2)
   static final String RETRIES_EXHAUSTED = "retries_exhausted";
@@ -233,11 +235,25 @@ public class Ad {
         length >= MIN_TITLE_LENGTH && length <= MAX_TITLE_LENGTH,
         "title",
         "must have between %d and %d characters".formatted(MIN_TITLE_LENGTH, MAX_TITLE_LENGTH));
+    requireNoControlCharacters(trimmed, "title");
     return trimmed;
   }
 
   private static void validateDescription(String description) {
     require(description != null && !description.isBlank(), "description", "is required");
+    require(
+        description.codePointCount(0, description.length()) <= MAX_DESCRIPTION_LENGTH,
+        "description",
+        "must have at most %d characters".formatted(MAX_DESCRIPTION_LENGTH));
+    requireNoControlCharacters(description, "description");
+  }
+
+  /** PostgreSQL can't store NUL, and the other control characters are never meaningful text. */
+  private static void requireNoControlCharacters(String text, String field) {
+    boolean hasControl =
+        text.codePoints()
+            .anyMatch(c -> Character.isISOControl(c) && c != '\n' && c != '\r' && c != '\t');
+    require(!hasControl, field, "must not contain control characters");
   }
 
   private static void validatePrice(BigDecimal price) {
@@ -256,7 +272,13 @@ public class Ad {
         "images",
         "must have between 1 and %d images".formatted(MAX_IMAGES));
     images.forEach(
-        image -> require(isAbsoluteHttpUrl(image), "images", "must be absolute http(s) URLs"));
+        image -> {
+          require(isAbsoluteHttpUrl(image), "images", "must be absolute http(s) URLs");
+          require(
+              image.length() <= MAX_IMAGE_URL_LENGTH,
+              "images",
+              "must have at most %d characters".formatted(MAX_IMAGE_URL_LENGTH));
+        });
   }
 
   private static boolean isAbsoluteHttpUrl(String value) {
