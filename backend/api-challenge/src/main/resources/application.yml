@@ -19,9 +19,11 @@ moderation:
     enabled: true
     poll-interval: 1s
     batch-size: 20
-    concurrency: 4 # provider calls in flight; the rate limiter still caps them at 4 req/s
+    # Provider calls in flight: rate x latency = 4 req/s x 2s (the provider's max latency). More
+    # wouldn't be faster (the rate limiter caps at 4 req/s); fewer drops below 4 req/s when slow.
+    concurrency: 8
     # Safety net if an instance dies holding the worker lock; longer than the worst-case run
-    # (20 ads / 4 in flight x (5s permit wait + 3s timeout) = 40s).
+    # (20 ads / 8 in flight = 3 rounds x (5s permit wait + 3s timeout) = 24s).
     lock-at-most-for: 2m
     lease: 30s # if a slow batch outlives it, the stale write is discarded (fencing)
 
