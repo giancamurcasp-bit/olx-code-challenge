@@ -181,7 +181,7 @@ com.olx.ads
 
 | Concern | Choice | Why |
 | --- | --- | --- |
-| Runtime | Java 25 (LTS), Spring Boot 4.1, Gradle 9 (Kotlin DSL) | Current LTS and Boot generation. The Gradle daemon is pinned to Java 25 and auto-provisioned, so the build doesn't depend on the local JDK. Records for DTOs; Lombok only where records don't fit |
+| Runtime | Java 25 (LTS), Spring Boot 4.1, Gradle 9 (Kotlin DSL) | Current LTS and Boot generation. The Gradle daemon is pinned to Java 25 and auto-provisioned, so the build doesn't depend on the local JDK. Records for DTOs; Lombok only where records don't fit, never in the domain (its `@Generated` annotation would break the dependency rule) |
 | Database | PostgreSQL + Flyway | `SKIP LOCKED` powers the queue; plain SQL migrations |
 | Persistence | Spring `JdbcClient` | No JPA entity duplicating the domain model (section 8); native SQL for keyset pagination and the worker claim |
 | HTTP / resilience | `RestClient`, Resilience4j (`RateLimiter`, `CircuitBreaker`) | No `Retry` (section 3) |
