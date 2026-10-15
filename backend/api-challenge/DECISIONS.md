@@ -122,7 +122,9 @@ Ours (`400`, `ProblemDetail`):
 
 **Left to moderation:** contact info, prohibited items and price range per category. That policy belongs to another service, and duplicating it creates two sources of truth.
 
-**Conscious duplication:** the category list. An invalid category could never be moderated (the mock returns `400`), so failing fast is better. If categories become dynamic, they should come from a shared source.
+**Conscious duplication:** the category list. An invalid category could never be moderated (the mock returns `400`), so failing fast is better.
+
+**Category as an enum, not a table:** the valid list belongs to the moderation provider (it rejects unknown categories), so a table would be a second source of truth that suggests categories can be added with an `INSERT`, and ads in a new category would just fail moderation. Trade-off: adding one means changing the enum and a migration. A table (or a shared categories service) becomes right when categories gain metadata, a hierarchy, or must be managed without a deploy.
 
 ---
 
