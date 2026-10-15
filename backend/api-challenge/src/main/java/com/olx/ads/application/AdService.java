@@ -6,11 +6,15 @@ import com.olx.ads.domain.Category;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /** Creating and reading ads. Moderation happens asynchronously (DECISIONS.md, section 1). */
 @Service
 public class AdService {
+
+  private static final Logger log = LoggerFactory.getLogger(AdService.class);
 
   private final AdRepository repository;
   private final Clock clock;
@@ -35,15 +39,27 @@ public class AdService {
             clock.instant());
     return repository
         .insertWithIdempotencyKey(ad, idempotencyKey)
-        .map(created -> new Creation(created, false))
+        .map(
+            created -> {
+              log.atInfo()
+                  .addKeyValue("ad_id", String.valueOf(created.getId()))
+                  .log("Ad created as pending");
+              return new Creation(created, false);
+            })
         .orElseGet(() -> replay(ad, idempotencyKey));
   }
 
   private Creation replay(Ad requested, String idempotencyKey) {
     Ad existing = repository.findByIdempotencyKey(idempotencyKey).orElseThrow();
     if (!existing.hasSameContentAs(requested)) {
+      log.atWarn()
+          .addKeyValue("ad_id", String.valueOf(existing.getId()))
+          .log("Idempotency-Key reused for a different ad; rejected");
       throw new IdempotencyKeyReusedException();
     }
+    log.atInfo()
+        .addKeyValue("ad_id", String.valueOf(existing.getId()))
+        .log("Idempotent replay of ad creation");
     return new Creation(existing, true);
   }
 

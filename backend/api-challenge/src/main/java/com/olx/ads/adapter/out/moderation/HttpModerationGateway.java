@@ -9,6 +9,8 @@ import java.math.BigDecimal;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
@@ -20,6 +22,8 @@ import org.springframework.web.client.RestClientException;
  * field as {@code reason} but actually sends {@code rejection_reason}; both are read.
  */
 public class HttpModerationGateway implements ModerationGateway {
+
+  private static final Logger log = LoggerFactory.getLogger(HttpModerationGateway.class);
 
   private static final String CHECK_PATH = "/v1/moderation/check";
   private static final Duration DEFAULT_RETRY_AFTER = Duration.ofSeconds(1);
@@ -44,14 +48,24 @@ public class HttpModerationGateway implements ModerationGateway {
     CheckRequest request =
         new CheckRequest(
             ad.getTitle(), ad.getDescription(), ad.getPrice(), ad.getCategory().value());
+    long start = System.nanoTime();
     try {
       return restClient
           .post()
           .uri(CHECK_PATH)
           .body(request)
-          .exchange((req, response) -> toResult(response.getStatusCode(), response));
+          .exchange(
+              (req, response) -> {
+                log.info(
+                    "Moderation API responded {} in {} ms",
+                    response.getStatusCode().value(),
+                    elapsedMillis(start));
+                return toResult(response.getStatusCode(), response);
+              });
     } catch (RestClientException e) {
-      return new ModerationResult.TransientFailure("request failed: " + rootMessage(e));
+      String error = "request failed: " + rootMessage(e);
+      log.warn("Moderation API call failed after {} ms: {}", elapsedMillis(start), error);
+      return new ModerationResult.TransientFailure(error);
     }
   }
 
@@ -107,6 +121,10 @@ public class HttpModerationGateway implements ModerationGateway {
       RestClient.RequestHeadersSpec.ConvertibleClientHttpResponse response) throws IOException {
     String body = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
     return body.length() > MAX_ERROR_BODY_LENGTH ? body.substring(0, MAX_ERROR_BODY_LENGTH) : body;
+  }
+
+  private static long elapsedMillis(long startNanos) {
+    return Duration.ofNanos(System.nanoTime() - startNanos).toMillis();
   }
 
   private static String rootMessage(Throwable e) {
