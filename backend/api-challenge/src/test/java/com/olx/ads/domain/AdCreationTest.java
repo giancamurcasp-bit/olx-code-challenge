@@ -172,6 +172,37 @@ class AdCreationTest {
         () -> Ad.create(TITLE, DESCRIPTION, PRICE, CATEGORY, Collections.singletonList(null), NOW));
   }
 
+  // --- same content (idempotent retries) ---
+
+  @Test
+  void sameRequestDescribesTheSameContent() {
+    Ad original = AdFixtures.pendingAd();
+    Ad retry =
+        Ad.create(
+            "  " + TITLE + " ",
+            DESCRIPTION,
+            new BigDecimal("3500"),
+            CATEGORY,
+            IMAGES,
+            NOW.plusSeconds(5));
+
+    assertThat(original.hasSameContentAs(retry)).isTrue();
+  }
+
+  @Test
+  void anyChangedFieldIsDifferentContent() {
+    Ad original = AdFixtures.pendingAd();
+
+    assertThat(original.hasSameContentAs(createWithTitle(TITLE + " novo"))).isFalse();
+    assertThat(original.hasSameContentAs(createWithDescription(DESCRIPTION + "!"))).isFalse();
+    assertThat(original.hasSameContentAs(createWithPrice(new BigDecimal("3500.01")))).isFalse();
+    assertThat(
+            original.hasSameContentAs(
+                Ad.create(TITLE, DESCRIPTION, PRICE, Category.MOVEIS, IMAGES, NOW)))
+        .isFalse();
+    assertThat(original.hasSameContentAs(createWithImages(images(2)))).isFalse();
+  }
+
   // --- helpers ---
 
   private static void assertInvalid(Runnable creation) {

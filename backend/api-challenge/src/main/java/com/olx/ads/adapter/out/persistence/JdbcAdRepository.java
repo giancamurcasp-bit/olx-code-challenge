@@ -49,6 +49,16 @@ public class JdbcAdRepository implements AdRepository {
   }
 
   @Override
+  public Optional<Ad> insertWithIdempotencyKey(Ad ad, String idempotencyKey) {
+    throw new UnsupportedOperationException("not implemented yet");
+  }
+
+  @Override
+  public Optional<Ad> findByIdempotencyKey(String idempotencyKey) {
+    throw new UnsupportedOperationException("not implemented yet");
+  }
+
+  @Override
   public Optional<Ad> findById(long id) {
     return jdbc.sql("SELECT * FROM ads WHERE id = :id")
         .param("id", id)

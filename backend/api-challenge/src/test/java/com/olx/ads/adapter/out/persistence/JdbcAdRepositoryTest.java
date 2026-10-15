@@ -11,7 +11,13 @@ import com.olx.ads.domain.RetryPolicy;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -58,6 +64,52 @@ class JdbcAdRepositoryTest {
   @Test
   void returnsEmptyForUnknownId() {
     assertThat(repository.findById(Long.MAX_VALUE)).isEmpty();
+  }
+
+  // --- idempotency key ---
+
+  @Test
+  void storesOnlyTheFirstAdForAnIdempotencyKey() {
+    String key = UUID.randomUUID().toString();
+
+    Optional<Ad> first = repository.insertWithIdempotencyKey(newAdCreatedAt(NOW), key);
+    Optional<Ad> second = repository.insertWithIdempotencyKey(newAdCreatedAt(NOW), key);
+
+    assertThat(first).isPresent();
+    assertThat(second).isEmpty();
+    assertThat(repository.findByIdempotencyKey(key)).map(Ad::getId).contains(first.get().getId());
+  }
+
+  @Test
+  void concurrentInsertsWithTheSameKeyStoreOneAd() throws Exception {
+    String key = UUID.randomUUID().toString();
+    int requests = 8;
+    var start = new CountDownLatch(1);
+
+    List<Optional<Ad>> results;
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      List<Future<Optional<Ad>>> futures = new ArrayList<>();
+      for (int i = 0; i < requests; i++) {
+        futures.add(
+            executor.submit(
+                () -> {
+                  start.await();
+                  return repository.insertWithIdempotencyKey(newAdCreatedAt(NOW), key);
+                }));
+      }
+      start.countDown();
+      results = new ArrayList<>();
+      for (Future<Optional<Ad>> future : futures) {
+        results.add(future.get());
+      }
+    }
+
+    assertThat(results).filteredOn(Optional::isPresent).hasSize(1);
+  }
+
+  @Test
+  void returnsEmptyForUnknownIdempotencyKey() {
+    assertThat(repository.findByIdempotencyKey(UUID.randomUUID().toString())).isEmpty();
   }
 
   // --- worker queue ---

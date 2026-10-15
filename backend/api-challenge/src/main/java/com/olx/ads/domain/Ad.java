@@ -161,6 +161,11 @@ public class Ad {
     updatedAt = now;
   }
 
+  /** Whether {@code other} describes the same ad content, ignoring ids, status and timestamps. */
+  public boolean hasSameContentAs(Ad other) {
+    throw new UnsupportedOperationException("not implemented yet");
+  }
+
   private void failModeration(String error) {
     lastModerationError = error;
     finish(AdStatus.MODERATION_FAILED);

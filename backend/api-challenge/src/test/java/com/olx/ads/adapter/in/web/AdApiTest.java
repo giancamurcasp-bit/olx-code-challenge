@@ -14,18 +14,21 @@ import com.olx.ads.TestcontainersConfiguration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest
@@ -70,6 +73,56 @@ class AdApiTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.title").value("iPhone 13 128GB azul"))
         .andExpect(jsonPath("$.status").value("pending"));
+  }
+
+  // --- idempotency key ---
+
+  @Test
+  void retryWithTheSameIdempotencyKeyReturnsTheSameAd() throws Exception {
+    String key = UUID.randomUUID().toString();
+
+    String first =
+        mockMvc
+            .perform(createWithKey(key, validAd()))
+            .andExpect(status().isCreated())
+            .andExpect(header().doesNotExist("Idempotent-Replayed"))
+            .andReturn()
+            .getResponse()
+            .getHeader("Location");
+
+    mockMvc
+        .perform(createWithKey(key, validAd()))
+        .andExpect(status().isCreated())
+        .andExpect(header().string("Location", first))
+        .andExpect(header().string("Idempotent-Replayed", "true"))
+        .andExpect(jsonPath("$.title").value("iPhone 13 128GB azul"));
+  }
+
+  @Test
+  void reusingAnIdempotencyKeyForADifferentAdIsRejected() throws Exception {
+    String key = UUID.randomUUID().toString();
+    mockMvc.perform(createWithKey(key, validAd())).andExpect(status().isCreated());
+    Map<String, Object> different = validAd();
+    different.put("price", 3400.00);
+
+    mockMvc
+        .perform(createWithKey(key, different))
+        .andExpect(status().isUnprocessableContent())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"", "chave com espaço"})
+  void rejectsMalformedIdempotencyKey(String key) throws Exception {
+    mockMvc
+        .perform(createWithKey(key, validAd()))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+  }
+
+  @Test
+  void rejectsIdempotencyKeyLongerThan255Characters() throws Exception {
+    mockMvc.perform(createWithKey("k".repeat(256), validAd())).andExpect(status().isBadRequest());
   }
 
   // --- validation ---
@@ -141,6 +194,13 @@ class AdApiTest {
     ad.put("category", "eletronicos");
     ad.put("images", List.of("https://example.com/iphone.jpg"));
     return ad;
+  }
+
+  private MockHttpServletRequestBuilder createWithKey(String key, Map<String, Object> ad) {
+    return post("/ads")
+        .header("Idempotency-Key", key)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(json(ad));
   }
 
   private static Arguments invalid(
