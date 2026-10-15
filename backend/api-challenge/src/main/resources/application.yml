@@ -8,6 +8,11 @@ spring:
   jackson:
     property-naming-strategy: SNAKE_CASE
 
+moderation:
+  base-url: ${MODERATION_BASE_URL:http://localhost:8787}
+  connect-timeout: 1s
+  read-timeout: 3s # the provider's maximum latency is 2s
+
 management:
   endpoints:
     web:
