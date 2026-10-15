@@ -1,0 +1,282 @@
+<!doctype html>
+<!--
+  Test UI for the Ads API: a manual testing helper, not part of the API.
+  One file, React from a CDN, no build step. Served by the app at http://localhost:8080/.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ads API · Test UI</title>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js" crossorigin></script>
+  <style>
+    :root {
+      --bg: #f6f7f9; --panel: #fff; --text: #1d2330; --muted: #6b7280; --border: #e3e6eb;
+      --accent: #6e0ad6; --pending: #b7791f; --published: #2f855a; --rejected: #c53030; --failed: #4a5568;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 14px/1.45 system-ui, sans-serif; background: var(--bg); color: var(--text); }
+    header { padding: 14px 20px; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
+    header h1 { margin: 0; font-size: 18px; }
+    header a { color: var(--accent); }
+    main { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 16px; padding: 16px; max-width: 1400px; margin: 0 auto; }
+    @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+    section { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px; min-width: 0; }
+    h2 { margin: 0 0 10px; font-size: 15px; }
+    label { display: block; margin: 8px 0 3px; font-weight: 600; font-size: 12px; color: var(--muted); }
+    input, select, textarea { width: 100%; padding: 7px 8px; border: 1px solid var(--border); border-radius: 6px; font: inherit; background: #fff; }
+    textarea { resize: vertical; }
+    button { padding: 7px 12px; border: 1px solid var(--accent); border-radius: 6px; background: var(--accent); color: #fff; font: inherit; cursor: pointer; }
+    button.secondary { background: #fff; color: var(--accent); }
+    button:disabled { opacity: .5; cursor: default; }
+    .row { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; }
+    .row > * { flex: 1; min-width: 90px; }
+    .row > button { flex: 0 0 auto; }
+    .muted { color: var(--muted); font-size: 12px; }
+    .key { font-family: ui-monospace, monospace; font-size: 12px; word-break: break-all; }
+    pre { background: #0f172a; color: #e2e8f0; padding: 10px; border-radius: 6px; overflow: auto; font-size: 12px; max-height: 360px; margin: 8px 0 0; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr.ad { cursor: pointer; }
+    tr.ad:hover { background: #f3eefc; }
+    tr.selected { background: #ece2fb; }
+    .badge { display: inline-block; padding: 1px 8px; border-radius: 10px; color: #fff; font-size: 12px; white-space: nowrap; }
+    .status-pending { background: var(--pending); }
+    .status-published { background: var(--published); }
+    .status-rejected { background: var(--rejected); }
+    .status-moderation_failed { background: var(--failed); }
+    .http { font-weight: 700; }
+    .http.ok { color: var(--published); }
+    .http.err { color: var(--rejected); }
+    .stack { display: grid; gap: 16px; align-content: start; min-width: 0; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  const html = htm.bind(React.createElement);
+  const { useState, useEffect, useCallback } = React;
+
+  const CATEGORIES = ["eletronicos", "moveis", "veiculos", "imoveis", "esportes", "colecionaveis"];
+  const STATUSES = ["published", "pending", "rejected", "moderation_failed"];
+  const EXAMPLES = {
+    valid: { title: "Sofá 3 lugares retrátil", description: "Tecido suede, ótimo estado.", price: "1200.50", category: "moveis" },
+    contact: { title: "Celular, chama no whatsapp", description: "Novo, na caixa.", price: "900", category: "eletronicos" },
+    prohibited: { title: "Vendo arma de pressão", description: "Pouco usada.", price: "500", category: "esportes" },
+    price: { title: "iPhone 15 Pro Max 1TB", description: "Lacrado.", price: "999999", category: "eletronicos" },
+    invalid: { title: "Curto", description: "", price: "0", category: "moveis" },
+  };
+
+  async function call(method, url, body, headers = {}) {
+    const response = await fetch(url, {
+      method,
+      headers: body ? { "Content-Type": "application/json", ...headers } : headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const text = await response.text();
+    let json = null;
+    try { json = text ? JSON.parse(text) : null; } catch { json = text; }
+    const picked = ["Location", "Idempotent-Replayed", "X-Request-Id"]
+      .filter(h => response.headers.get(h))
+      .map(h => [h, response.headers.get(h)]);
+    return { status: response.status, ok: response.ok, headers: Object.fromEntries(picked), body: json };
+  }
+
+  function Badge({ status }) {
+    return html`<span class=${"badge status-" + status}>${status}</span>`;
+  }
+
+  function HttpResult({ result }) {
+    if (!result) return null;
+    return html`
+      <div style=${{ marginTop: 10 }}>
+        <span class=${"http " + (result.ok ? "ok" : "err")}>HTTP ${result.status}</span>
+        ${Object.entries(result.headers).map(([k, v]) => html`<div class="muted key" key=${k}>${k}: ${v}</div>`)}
+        <pre>${JSON.stringify(result.body, null, 2)}</pre>
+      </div>`;
+  }
+
+  function CreateAd({ onCreated }) {
+    const [form, setForm] = useState({ ...EXAMPLES.valid, images: "https://example.com/a.jpg" });
+    const [key, setKey] = useState(crypto.randomUUID());
+    const [result, setResult] = useState(null);
+    const [busy, setBusy] = useState(false);
+    const set = field => e => setForm({ ...form, [field]: e.target.value });
+
+    async function submit(withKey) {
+      setBusy(true);
+      const body = {
+        title: form.title,
+        description: form.description,
+        price: form.price === "" ? null : Number(form.price),
+        category: form.category,
+        images: form.images.split("\n").map(s => s.trim()).filter(Boolean),
+      };
+      const res = await call("POST", "/ads", body, { "Idempotency-Key": withKey });
+      setResult(res);
+      setBusy(false);
+      if (res.status === 201) onCreated(res.body.id);
+    }
+
+    return html`
+      <section>
+        <h2>Create ad</h2>
+        <div class="muted">Examples:${" "}
+          ${Object.keys(EXAMPLES).map(name => html`
+            <a href="#" key=${name} style=${{ marginRight: 8 }}
+               onClick=${e => { e.preventDefault(); setForm({ ...form, ...EXAMPLES[name] }); }}>${name}</a>`)}
+        </div>
+        <label>Title</label><input value=${form.title} onInput=${set("title")} />
+        <label>Description</label><textarea rows="2" value=${form.description} onInput=${set("description")}></textarea>
+        <div class="row">
+          <div><label>Price</label><input value=${form.price} onInput=${set("price")} /></div>
+          <div><label>Category</label>
+            <select value=${form.category} onChange=${set("category")}>
+              ${CATEGORIES.map(c => html`<option key=${c}>${c}</option>`)}
+            </select>
+          </div>
+        </div>
+        <label>Images (one URL per line)</label>
+        <textarea rows="2" value=${form.images} onInput=${set("images")}></textarea>
+        <label>Idempotency-Key</label>
+        <div class="key">${key}</div>
+        <div class="row" style=${{ marginTop: 10 }}>
+          <button disabled=${busy} onClick=${() => { const k = crypto.randomUUID(); setKey(k); submit(k); }}>Create (new key)</button>
+          <button class="secondary" disabled=${busy} onClick=${() => submit(key)}
+                  title="Sends the same key again: same content replays the ad, different content gets 422">Retry same key</button>
+        </div>
+        <${HttpResult} result=${result} />
+      </section>`;
+  }
+
+  function AdList({ selectedId, onSelect, refreshSignal }) {
+    const [filters, setFilters] = useState({ status: "published", category: "", limit: "10" });
+    const [ads, setAds] = useState([]);
+    const [next, setNext] = useState(null);
+    const [error, setError] = useState(null);
+    const [auto, setAuto] = useState(true);
+
+    const query = useCallback(cursor => {
+      const params = new URLSearchParams({ status: filters.status, limit: filters.limit });
+      if (filters.category) params.set("category", filters.category);
+      if (cursor) params.set("cursor", cursor);
+      return "/ads?" + params;
+    }, [filters]);
+
+    const load = useCallback(async () => {
+      const res = await call("GET", query(null));
+      if (!res.ok) { setError(res); return; }
+      setError(null);
+      setAds(res.body.data);
+      setNext(res.body.next_cursor);
+    }, [query]);
+
+    async function loadMore() {
+      const res = await call("GET", query(next));
+      if (!res.ok) { setError(res); return; }
+      setAds(current => [...current, ...res.body.data]);
+      setNext(res.body.next_cursor);
+    }
+
+    useEffect(() => { load(); }, [load, refreshSignal]);
+    useEffect(() => {
+      if (!auto) return;
+      const timer = setInterval(load, 2000);
+      return () => clearInterval(timer);
+    }, [auto, load]);
+
+    const set = field => e => setFilters({ ...filters, [field]: e.target.value });
+    return html`
+      <section>
+        <h2>Ads</h2>
+        <div class="row">
+          <div><label>Status</label>
+            <select value=${filters.status} onChange=${set("status")}>
+              ${STATUSES.map(s => html`<option key=${s}>${s}</option>`)}
+            </select>
+          </div>
+          <div><label>Category</label>
+            <select value=${filters.category} onChange=${set("category")}>
+              <option value="">(all)</option>
+              ${CATEGORIES.map(c => html`<option key=${c}>${c}</option>`)}
+            </select>
+          </div>
+          <div><label>Limit</label><input value=${filters.limit} onInput=${set("limit")} /></div>
+          <button class="secondary" onClick=${load}>Refresh</button>
+        </div>
+        <label style=${{ fontWeight: 400 }}>
+          <input type="checkbox" style=${{ width: "auto" }} checked=${auto} onChange=${e => setAuto(e.target.checked)} />
+          ${" "}Refresh every 2s (first page)
+        </label>
+        ${error && html`<${HttpResult} result=${error} />`}
+        <table>
+          <thead><tr><th>Id</th><th>Title</th><th>Price</th><th>Category</th><th>Status</th><th>Created</th></tr></thead>
+          <tbody>
+            ${ads.map(ad => html`
+              <tr key=${ad.id} class=${"ad" + (ad.id === selectedId ? " selected" : "")} onClick=${() => onSelect(ad.id)}>
+                <td>${ad.id}</td>
+                <td>${ad.title}${ad.rejection_reason && html`<div class="muted">${ad.rejection_reason}</div>`}</td>
+                <td>${ad.price}</td>
+                <td>${ad.category}</td>
+                <td><${Badge} status=${ad.status} /></td>
+                <td class="muted">${new Date(ad.created_at).toLocaleString()}</td>
+              </tr>`)}
+          </tbody>
+        </table>
+        ${!ads.length && !error && html`<p class="muted">No ads.</p>`}
+        <div class="row" style=${{ marginTop: 10 }}>
+          <span class="muted">${ads.length} shown${next ? "" : " · last page"}</span>
+          <button class="secondary" disabled=${!next} onClick=${loadMore}>Next page (cursor)</button>
+        </div>
+      </section>`;
+  }
+
+  function AdDetail({ id }) {
+    const [result, setResult] = useState(null);
+    const load = useCallback(async () => { if (id) setResult(await call("GET", "/ads/" + id)); }, [id]);
+    useEffect(() => { load(); }, [load]);
+    // Poll while pending, like a client waiting for moderation would.
+    useEffect(() => {
+      if (!result || !result.ok || result.body.status !== "pending") return;
+      const timer = setTimeout(load, 1000);
+      return () => clearTimeout(timer);
+    }, [result, load]);
+
+    if (!id) return html`<section><h2>Ad detail</h2><p class="muted">Create an ad or pick one from the list.</p></section>`;
+    const ad = result && result.ok ? result.body : null;
+    return html`
+      <section>
+        <h2>Ad detail · #${id} ${ad && html`<${Badge} status=${ad.status} />`}</h2>
+        ${ad && ad.status === "pending" && html`<div class="muted">Waiting for moderation, polling GET /ads/${id} every second…</div>`}
+        ${ad && ad.rejection_reason && html`<div><b>Rejection reason:</b> ${ad.rejection_reason}</div>`}
+        ${ad && ad.last_moderation_error && html`<div><b>Last moderation error:</b> ${ad.last_moderation_error}</div>`}
+        <${HttpResult} result=${result} />
+      </section>`;
+  }
+
+  function App() {
+    const [selectedId, setSelectedId] = useState(null);
+    const [refreshSignal, setRefreshSignal] = useState(0);
+    return html`
+      <header>
+        <h1>Ads API · Test UI</h1>
+        <span class="muted">A manual testing helper; the contract is in</span>
+        <a href="/swagger-ui.html">Swagger UI</a>
+      </header>
+      <main>
+        <div class="stack">
+          <${CreateAd} onCreated=${id => { setSelectedId(id); setRefreshSignal(n => n + 1); }} />
+        </div>
+        <div class="stack">
+          <${AdDetail} id=${selectedId} />
+          <${AdList} selectedId=${selectedId} onSelect=${setSelectedId} refreshSignal=${refreshSignal} />
+        </div>
+      </main>`;
+  }
+
+  ReactDOM.createRoot(document.getElementById("root")).render(html`<${App} />`);
+</script>
+</body>
+</html>

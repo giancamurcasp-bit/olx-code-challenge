@@ -54,6 +54,7 @@ This starts:
 | Service | URL |
 | --- | --- |
 | Ads API | `http://localhost:8080` |
+| Test UI | `http://localhost:8080/` (manual testing helper, see below) |
 | Health | `http://localhost:8080/actuator/health` |
 | Swagger UI | `http://localhost:8080/swagger-ui.html` (OpenAPI JSON at `/v3/api-docs`) |
 | PostgreSQL | `localhost:5433` (not 5432, to avoid clashing with a local Postgres) |
@@ -72,6 +73,10 @@ curl localhost:8080/ads/{id}                         # pending → rejected, wit
 curl 'localhost:8080/ads?category=moveis&limit=5'    # published ads; follow next_cursor for more
 curl 'localhost:8080/ads?status=rejected'
 ```
+
+### Test UI
+
+A single-page helper at `http://localhost:8080/` to exercise the API without curl: create ads (with example payloads that get approved or rejected for each reason), retry with the same `Idempotency-Key`, watch an ad go from `pending` to its outcome (it polls `GET /ads/{id}`), and page through the listing with filters. It is a testing aid, not part of the API: one static file (`src/main/resources/static/index.html`) with React from a CDN, no build step, served by the app so no CORS setup is needed.
 
 ### Running the app outside Docker
 
