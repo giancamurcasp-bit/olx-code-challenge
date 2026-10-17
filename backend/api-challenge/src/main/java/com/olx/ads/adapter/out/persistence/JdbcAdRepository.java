@@ -19,6 +19,12 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class JdbcAdRepository implements AdRepository {
 
+  /** The columns {@link #toAd} reads; named, so a new column isn't fetched until it is mapped. */
+  private static final String AD_COLUMNS =
+      """
+      id, title, description, price, category, images, status, rejection_reason, \
+      moderation_attempts, next_attempt_at, last_moderation_error, created_at, updated_at""";
+
   private final JdbcClient jdbc;
 
   public JdbcAdRepository(JdbcClient jdbc) {
@@ -36,8 +42,9 @@ public class JdbcAdRepository implements AdRepository {
             VALUES (:title, :description, :price, :category, :images, :status,
                     :attempts, :nextAttemptAt, :createdAt, :updatedAt, :idempotencyKey)
             ON CONFLICT (idempotency_key) DO NOTHING
-            RETURNING *
-            """)
+            RETURNING %s
+            """
+                .formatted(AD_COLUMNS))
         .param("title", ad.getTitle())
         .param("description", ad.getDescription())
         .param("price", ad.getPrice())
@@ -55,7 +62,7 @@ public class JdbcAdRepository implements AdRepository {
 
   @Override
   public Optional<Ad> findByIdempotencyKey(String idempotencyKey) {
-    return jdbc.sql("SELECT * FROM ads WHERE idempotency_key = :key")
+    return jdbc.sql("SELECT " + AD_COLUMNS + " FROM ads WHERE idempotency_key = :key")
         .param("key", idempotencyKey)
         .query(JdbcAdRepository::toAd)
         .optional();
@@ -63,7 +70,7 @@ public class JdbcAdRepository implements AdRepository {
 
   @Override
   public Optional<Ad> findById(long id) {
-    return jdbc.sql("SELECT * FROM ads WHERE id = :id")
+    return jdbc.sql("SELECT " + AD_COLUMNS + " FROM ads WHERE id = :id")
         .param("id", id)
         .query(JdbcAdRepository::toAd)
         .optional();
@@ -76,7 +83,8 @@ public class JdbcAdRepository implements AdRepository {
    */
   @Override
   public List<Ad> findPage(AdStatus status, Category category, PageCursor after, int limit) {
-    StringBuilder sql = new StringBuilder("SELECT * FROM ads WHERE status = :status");
+    StringBuilder sql =
+        new StringBuilder("SELECT " + AD_COLUMNS + " FROM ads WHERE status = :status");
     if (category != null) {
       sql.append(" AND category = :category");
     }
@@ -112,8 +120,9 @@ public class JdbcAdRepository implements AdRepository {
                          ORDER BY next_attempt_at
                          LIMIT :limit
                          FOR UPDATE SKIP LOCKED)
-            RETURNING *
-            """)
+            RETURNING %s
+            """
+                .formatted(AD_COLUMNS))
         .param("leaseUntil", toTimestamp(now.plus(lease)))
         .param("now", toTimestamp(now))
         .param("limit", limit)
