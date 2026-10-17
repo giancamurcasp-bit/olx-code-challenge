@@ -1,5 +1,6 @@
 package com.olx.ads.adapter.in.web;
 
+import com.olx.ads.adapter.in.web.error.InvalidParameterException;
 import com.olx.ads.application.port.PageCursor;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -9,18 +10,18 @@ import java.util.Base64;
  * Turns a {@link PageCursor} into the opaque {@code next_cursor} string and back. Opaque so clients
  * don't build cursors themselves and the format can change (DECISIONS.md, section 4).
  */
-final class CursorCodec {
+public final class CursorCodec {
 
   private CursorCodec() {}
 
-  static String encode(PageCursor cursor) {
+  public static String encode(PageCursor cursor) {
     String raw = cursor.createdAt() + "," + cursor.id();
     return Base64.getUrlEncoder()
         .withoutPadding()
         .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
   }
 
-  static PageCursor decode(String cursor) {
+  public static PageCursor decode(String cursor) {
     try {
       String raw = new String(Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
       String[] parts = raw.split(",", -1);

@@ -1,4 +1,4 @@
-package com.olx.ads.adapter.in.web;
+package com.olx.ads.adapter.in.web.dto;
 
 import com.olx.ads.application.AdService.NewAd;
 import com.olx.ads.domain.Category;
@@ -15,14 +15,14 @@ import java.util.List;
  * precise rules (title length in characters, price scale, image URLs, category) live in the domain,
  * so they are defined once and apply to every way an ad is created.
  */
-record CreateAdRequest(
+public record CreateAdRequest(
     @NotBlank String title,
     @NotBlank String description,
     @NotNull @Positive BigDecimal price,
     @NotBlank String category,
     @NotEmpty @Size(max = 10) List<String> images) {
 
-  NewAd toNewAd() {
+  public NewAd toNewAd() {
     return new NewAd(title, description, price, Category.fromValue(category), images);
   }
 }

@@ -1,4 +1,4 @@
-package com.olx.ads.adapter.in.web;
+package com.olx.ads.adapter.in.web.error;
 
 import com.olx.ads.application.AdNotFoundException;
 import com.olx.ads.application.IdempotencyKeyReusedException;

@@ -1,4 +1,4 @@
-package com.olx.ads.adapter.in.web;
+package com.olx.ads.adapter.in.web.dto;
 
 import com.olx.ads.domain.Ad;
 import java.math.BigDecimal;
@@ -6,7 +6,7 @@ import java.time.Instant;
 import java.util.List;
 
 /** An ad as exposed by the API. Field names are serialized in snake_case. */
-record AdResponse(
+public record AdResponse(
     long id,
     String title,
     String description,
@@ -20,7 +20,7 @@ record AdResponse(
     Instant createdAt,
     Instant updatedAt) {
 
-  static AdResponse from(Ad ad) {
+  public static AdResponse from(Ad ad) {
     return new AdResponse(
         ad.getId(),
         ad.getTitle(),

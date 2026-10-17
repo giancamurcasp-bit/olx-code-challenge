@@ -1,5 +1,10 @@
-package com.olx.ads.adapter.in.web;
+package com.olx.ads.adapter.in.web.controller;
 
+import com.olx.ads.adapter.in.web.CursorCodec;
+import com.olx.ads.adapter.in.web.dto.AdPageResponse;
+import com.olx.ads.adapter.in.web.dto.AdResponse;
+import com.olx.ads.adapter.in.web.dto.CreateAdRequest;
+import com.olx.ads.adapter.in.web.error.InvalidParameterException;
 import com.olx.ads.application.AdService;
 import com.olx.ads.application.AdService.AdPage;
 import com.olx.ads.application.AdService.Creation;

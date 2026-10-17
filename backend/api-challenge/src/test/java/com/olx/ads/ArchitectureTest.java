@@ -1,5 +1,6 @@
 package com.olx.ads;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 import com.tngtech.archunit.core.importer.ImportOption;
@@ -40,4 +41,14 @@ class ArchitectureTest {
           .dependOnClassesThat()
           .resideInAPackage("..adapter.out..")
           .allowEmptyShould(true);
+
+  /** DTOs and web errors are public only to cross the web subpackages, not to leave the adapter. */
+  @ArchTest
+  static final ArchRule webTypesStayInTheWebAdapter =
+      classes()
+          .that()
+          .resideInAPackage("..adapter.in.web..")
+          .should()
+          .onlyHaveDependentClassesThat()
+          .resideInAPackage("..adapter.in.web..");
 }
