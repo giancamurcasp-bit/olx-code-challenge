@@ -260,14 +260,7 @@ How the system behaves under load is measured, not assumed: k6 scenarios ([`load
 
 ## Time spent
 
-About 17 hours of active work over four days, estimated from the session logs and commits: well above the suggested 4–6 hours.
-
-| Day | Hours | Work |
-| --- | --- | --- |
-| Oct 14 | ~1.5 | Reading the brief and the mock's code, first decisions |
-| Oct 15 | ~8.5 | Implementation (test-first), Docker setup, docs |
-| Oct 16 | ~6 | Revisiting the queue (an SQS version, then back to the table with a single worker), load test and metrics |
-| Oct 17 | ~1 | Final review: load-test pass/fail criteria, the queue-age metric, the docs |
+About 7 hours in total, a bit above the suggested 4–6: most of it on the core (API, asynchronous moderation, retries and tests), the rest on the load test and the final review.
 
 ## What I would do with more time
 
