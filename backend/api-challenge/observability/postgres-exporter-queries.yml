@@ -9,14 +9,16 @@ ads:
         usage: GAUGE
         description: Number of ads in this status
 
+# Queue age: how long the seller of the oldest pending ad has been waiting. moderation_queued_at
+# survives retries; updated_at would restart the clock on every failed attempt.
 ads_pending_oldest:
   query: |
-    SELECT COALESCE(EXTRACT(EPOCH FROM now() - min(updated_at)), 0)::float AS age_seconds
+    SELECT COALESCE(EXTRACT(EPOCH FROM now() - min(moderation_queued_at)), 0)::float AS age_seconds
     FROM ads WHERE status = 'pending'
   metrics:
     - age_seconds:
         usage: GAUGE
-        description: Seconds since the oldest pending ad was created or last changed
+        description: Seconds the oldest pending ad has been waiting for moderation, retries included
 
 # Scans per index: an index that stays at 0 only costs on writes.
 ads_index:

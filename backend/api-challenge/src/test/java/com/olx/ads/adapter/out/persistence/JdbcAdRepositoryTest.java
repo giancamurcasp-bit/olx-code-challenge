@@ -1,6 +1,7 @@
 package com.olx.ads.adapter.out.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import com.olx.ads.TestAds;
 import com.olx.ads.TestcontainersConfiguration;
@@ -12,6 +13,8 @@ import com.olx.ads.domain.RetryPolicy;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -23,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.simple.JdbcClient;
 
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
@@ -33,6 +37,7 @@ class JdbcAdRepositoryTest {
   private static final int ANY_LIMIT = 1_000; // other tests share the database
 
   @Autowired JdbcAdRepository repository;
+  @Autowired JdbcClient jdbc;
 
   @Test
   void insertsANewAdAndReadsItBack() {
@@ -194,6 +199,26 @@ class JdbcAdRepositoryTest {
     Ad found = repository.findById(ad.getId()).orElseThrow();
     assertThat(found.getStatus()).isEqualTo(AdStatus.PENDING);
     assertThat(found.getLastModerationError()).isEqualTo("http 500");
+  }
+
+  @Test
+  void keepsTheTimeTheAdEnteredTheModerationQueueAcrossAttempts() {
+    Ad imported = TestAds.store(repository, newAdCreatedAt(NOW.minus(Duration.ofDays(30))));
+    Instant queuedAt = moderationQueuedAt(imported);
+    Ad claimed = claim(imported, NOW);
+    claimed.applyModeration(new ModerationResult.TransientFailure("http 500"), POLICY, NOW);
+    repository.update(claimed, NOW.plus(LEASE));
+
+    assertThat(queuedAt).isCloseTo(Instant.now(), within(1, ChronoUnit.MINUTES)); // not created_at
+    assertThat(moderationQueuedAt(imported)).isEqualTo(queuedAt); // a retry doesn't reset it
+  }
+
+  private Instant moderationQueuedAt(Ad ad) {
+    return jdbc.sql("SELECT moderation_queued_at FROM ads WHERE id = :id")
+        .param("id", ad.getId())
+        .query(OffsetDateTime.class)
+        .single()
+        .toInstant();
   }
 
   private Ad claim(Ad ad, Instant now) {
