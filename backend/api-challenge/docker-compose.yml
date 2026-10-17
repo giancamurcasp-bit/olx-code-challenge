@@ -1,17 +1,35 @@
+# The API and the moderation worker run the same image as separate services: the API scales
+# with traffic, the worker stays at one replica (DECISIONS.md, 3).
+x-app: &app
+  image: ads-api:local
+  depends_on:
+    postgres:
+      condition: service_healthy
+    moderation-api:
+      condition: service_healthy
+
+x-app-env: &app-env
+  SPRING_PROFILES_ACTIVE: docker
+  DB_URL: jdbc:postgresql://postgres:5432/ads
+  MODERATION_BASE_URL: http://moderation-api:8787
+
 services:
-  app:
-    build: .
+  api:
+    <<: *app
+    build: . # built once; the worker reuses the image
     ports:
       - "8080:8080"
     environment:
-      SPRING_PROFILES_ACTIVE: docker
-      DB_URL: jdbc:postgresql://postgres:5432/ads
-      MODERATION_BASE_URL: http://moderation-api:8787
-    depends_on:
-      postgres:
-        condition: service_healthy
-      moderation-api:
-        condition: service_healthy
+      <<: *app-env
+      MODERATION_WORKER_ENABLED: "false"
+
+  worker:
+    <<: *app
+    pull_policy: never
+    environment:
+      <<: *app-env
+      MODERATION_WORKER_ENABLED: "true"
+      SEED_ENABLED: "false" # the API imports the seed
 
   postgres:
     image: postgres:18-alpine

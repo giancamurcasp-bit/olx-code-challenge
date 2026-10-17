@@ -274,7 +274,7 @@
       direction LR
       web[AdController<br/>REST · ProblemDetail · RequestIdFilter]
       seed[SeedImporter<br/>57 ads at startup]
-      worker[ModerationWorker<br/>@Scheduled every 1s · ShedLock]
+      worker[ModerationWorker<br/>@Scheduled every 1s · own deployment, 1 replica]
     end
     subgraph APP [Application]
       direction LR
@@ -292,7 +292,7 @@
       resil[ResilientModerationGateway<br/>circuit breaker · 4 calls/s]
       http[HttpModerationGateway<br/>RestClient · 3s timeout]
     end
-    db[(PostgreSQL<br/>ads · shedlock)]
+    db[(PostgreSQL<br/>ads)]
     mock([Moderation API mock<br/>5 req/s])
     client --> web
     web --> adsvc
@@ -317,7 +317,7 @@
     C->>API: POST /ads + Idempotency-Key
     API->>DB: INSERT ... ON CONFLICT (idempotency_key) DO NOTHING
     API-->>C: 201 pending + Location
-    loop every 1s, one instance (ShedLock)
+    loop every 1s, one worker replica
       W->>DB: claim up to 20 due ads (FOR UPDATE SKIP LOCKED, lease 30s)
       par up to 8 in flight, 4 calls/s
         W->>M: POST /v1/moderation/check
@@ -344,7 +344,7 @@
     ["No duplicate ads on retries", "Required Idempotency-Key, unique column, INSERT … ON CONFLICT DO NOTHING; same content replays, different content is 422", "AdService, V2 migration"],
     ["No ad moderated twice at once", "Claim with FOR UPDATE SKIP LOCKED and a 30s lease in next_attempt_at", "JdbcAdRepository.claimDue"],
     ["No stale writes", "The save requires the lease the worker claimed (fencing token)", "JdbcAdRepository.update"],
-    ["Stay under the provider's 5 req/s", "Rate limiter: 1 permit every 250ms (4/s); one worker across instances (ShedLock)", "ResilientModerationGateway, SchedulerLockConfig"],
+    ["Stay under the provider's 5 req/s", "Rate limiter: 1 permit every 250ms (4/s), in a worker deployment of one replica, separate from the API", "ResilientModerationGateway, moderation.worker.enabled"],
     ["Hide the provider's latency", "8 calls in flight on virtual threads (4 req/s × 2s max latency)", "ModerationService"],
     ["Survive provider outages", "Circuit breaker: stop claiming while open; attempts not spent", "ResilientModerationGateway"],
     ["Retries that survive restarts", "next_attempt_at in the database; exponential backoff + jitter, capped at 15 attempts", "Ad, RetryPolicy"],

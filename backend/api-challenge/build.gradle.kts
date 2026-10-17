@@ -24,7 +24,6 @@ val resilience4jVersion = "2.4.0"
 val springdocVersion = "3.1.1"
 val wiremockVersion = "3.13.2"
 val archunitVersion = "1.5.1"
-val shedlockVersion = "7.10.1"
 
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
@@ -36,8 +35,6 @@ dependencies {
 	implementation("org.flywaydb:flyway-database-postgresql")
 	implementation("io.github.resilience4j:resilience4j-spring-boot4:$resilience4jVersion")
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion")
-	implementation("net.javacrumbs.shedlock:shedlock-spring:$shedlockVersion")
-	implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:$shedlockVersion")
 	runtimeOnly("org.postgresql:postgresql")
 	compileOnly("org.projectlombok:lombok")
 	annotationProcessor("org.projectlombok:lombok")
