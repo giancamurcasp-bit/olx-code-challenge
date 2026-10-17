@@ -51,7 +51,15 @@ management:
   endpoints:
     web:
       exposure:
-        include: health, info, metrics
+        include: health, info, metrics, prometheus # prometheus: scraped in the load test (loadtest/)
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      # Histogram buckets, so Prometheus can compute p95/p99 across instances
+      percentiles-histogram:
+        http.server.requests: true
+        http.client.requests: true
 
 ---
 spring:

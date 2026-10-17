@@ -36,6 +36,7 @@ dependencies {
 	implementation("io.github.resilience4j:resilience4j-spring-boot4:$resilience4jVersion")
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion")
 	runtimeOnly("org.postgresql:postgresql")
+	runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 	compileOnly("org.projectlombok:lombok")
 	annotationProcessor("org.projectlombok:lombok")
 

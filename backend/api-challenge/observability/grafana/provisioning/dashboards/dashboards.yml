@@ -1,0 +1,6 @@
+apiVersion: 1
+providers:
+  - name: ads
+    folder: Ads API
+    options:
+      path: /var/lib/grafana/dashboards

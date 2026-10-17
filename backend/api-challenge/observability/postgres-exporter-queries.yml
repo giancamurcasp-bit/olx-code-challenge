@@ -1,0 +1,64 @@
+# Moderation backlog straight from the table, without an app metric.
+ads:
+  query: "SELECT status, count(*)::float AS count FROM ads GROUP BY status"
+  metrics:
+    - status:
+        usage: LABEL
+        description: Ad status
+    - count:
+        usage: GAUGE
+        description: Number of ads in this status
+
+ads_pending_oldest:
+  query: |
+    SELECT COALESCE(EXTRACT(EPOCH FROM now() - min(updated_at)), 0)::float AS age_seconds
+    FROM ads WHERE status = 'pending'
+  metrics:
+    - age_seconds:
+        usage: GAUGE
+        description: Seconds since the oldest pending ad was created or last changed
+
+# Scans per index: an index that stays at 0 only costs on writes.
+ads_index:
+  query: "SELECT indexrelname AS index, idx_scan::float AS scans FROM pg_stat_user_indexes WHERE relname = 'ads'"
+  metrics:
+    - index:
+        usage: LABEL
+        description: Index name
+    - scans:
+        usage: COUNTER
+        description: Index scans since the statistics were reset
+
+# Slowest app statements with their SQL (pg_stat_statements), excluding the exporter's own queries.
+ads_statement:
+  query: |
+    SELECT queryid::text AS queryid,
+           left(regexp_replace(query, '\s+', ' ', 'g'), 120) AS query,
+           calls::float AS calls,
+           (mean_exec_time / 1000)::float AS mean_seconds,
+           (max_exec_time / 1000)::float AS max_seconds,
+           (total_exec_time / 1000)::float AS total_seconds
+    FROM pg_stat_statements
+    WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database())
+      AND query ILIKE '%ads%' AND query NOT ILIKE '%pg_stat%' AND query NOT LIKE '%::float AS%' AND query NOT ILIKE 'EXPLAIN%'
+    ORDER BY mean_exec_time DESC
+    LIMIT 10
+  metrics:
+    - queryid:
+        usage: LABEL
+        description: Statement id (two statements can share the first 120 characters)
+    - query:
+        usage: LABEL
+        description: Normalized SQL, first 120 characters
+    - calls:
+        usage: COUNTER
+        description: Executions
+    - mean_seconds:
+        usage: GAUGE
+        description: Mean execution time
+    - max_seconds:
+        usage: GAUGE
+        description: Maximum execution time
+    - total_seconds:
+        usage: COUNTER
+        description: Total execution time
