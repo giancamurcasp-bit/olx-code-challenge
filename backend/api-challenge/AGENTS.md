@@ -68,9 +68,11 @@ Ads API for a marketplace: create, list and detail ads, with asynchronous modera
 ## Commands
 
 ```bash
-docker compose up --build    # app + PostgreSQL + moderation mock
+docker compose up --build    # API + worker + PostgreSQL + moderation mock
 ./gradlew build              # Spotless check + tests (Testcontainers requires Docker)
 ./gradlew test               # tests only
 ./gradlew jacocoTestReport   # coverage report
 ./gradlew spotlessApply      # format code (run before committing)
+docker compose --profile observability up -d   # + Prometheus, Grafana (:3000), postgres-exporter
+docker compose run --rm k6 run /scripts/backlog.js   # load test (loadtest/README.md)
 ```

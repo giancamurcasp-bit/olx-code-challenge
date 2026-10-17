@@ -15,7 +15,7 @@ REST service for **creating and listing marketplace ads**, with **automatic mode
                          ◀── 201 Created (pending) ──┘        ▲
                                                               │ claim pending ads
                                                               │ (FOR UPDATE SKIP LOCKED)
-                                                     Moderation worker
+                                                     Moderation worker (own deployment, 1 replica)
                                                               │ rate limited (~4 req/s)
                                                               │ circuit breaker, timeout
                                                               ▼
@@ -53,12 +53,15 @@ This starts:
 
 | Service | URL |
 | --- | --- |
-| Ads API | `http://localhost:8080` |
+| Ads API | `http://localhost:8080` (service `api`, moderation worker off) |
+| Moderation worker | No port (service `worker`, same image, one replica: `DECISIONS.md` 3) |
 | Test UI | `http://localhost:8080/` (manual testing helper, see below) |
 | Health | `http://localhost:8080/actuator/health` |
 | Swagger UI | `http://localhost:8080/swagger-ui.html` (OpenAPI JSON at `/v3/api-docs`) |
 | PostgreSQL | `localhost:5433` (not 5432, to avoid clashing with a local Postgres) |
 | Moderation mock | `http://localhost:8787` |
+
+**Load test and metrics:** `docker compose --profile observability up -d` adds Prometheus and Grafana (`http://localhost:3000`), and `docker compose run --rm k6 run /scripts/backlog.js` runs a load scenario; see [`loadtest/README.md`](./loadtest/README.md) for the scenarios and measured results.
 
 On startup, the 57 example ads from the mock's seed are imported as `pending` and moderated by the worker within seconds; restarts don't import them again. To start from an empty database: `docker compose down -v`.
 
@@ -84,7 +87,7 @@ Requires any JDK 17+ to launch Gradle; the Gradle daemon and the build use Java 
 
 ```bash
 docker compose up -d postgres moderation-api
-./gradlew bootRun
+MODERATION_WORKER_ENABLED=true ./gradlew bootRun   # API and worker in one process
 ```
 
 ### Tests and coverage
@@ -106,7 +109,7 @@ What is tested, and why (critical flows first):
 | Create → worker → `published`/`rejected` with its reason, including a retry | `ModerationFlowTest` (end to end: Postgres + WireMock) |
 | Queue claim and lease fencing, concurrent idempotent inserts, keyset pagination with tied dates | `JdbcAdRepositoryTest`, `JdbcAdRepositoryListingTest` (Testcontainers Postgres) |
 | Idempotency, listing filters, cursor paging, detail and `404` | `AdServiceTest`, `AdApiTest`, `AdListingApiTest` |
-| One worker across instances, seed import, contract matches responses, dependency rule | `ModerationWorkerLockTest`, `SeedImporterTest`, `OpenApiContractTest`, `ArchitectureTest` |
+| Contract matches responses, dependency rule | `OpenApiContractTest`, `ArchitectureTest` |
 
 > **Colima / non-default Docker socket:** Testcontainers looks for `/var/run/docker.sock`. With Colima, export
 > `DOCKER_HOST=unix://$HOME/.colima/default/docker.sock` and `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock` before running the tests.
@@ -201,6 +204,6 @@ Returns the ad in any status, including moderation info:
 
 ## Tech stack
 
-Java 25 · Spring Boot 4.1 · Gradle 9 · PostgreSQL · Flyway · Spring JdbcClient · Resilience4j · ShedLock · Actuator/Micrometer · springdoc-openapi · JUnit 5 · Testcontainers · WireMock · ArchUnit · JaCoCo · Spotless
+Java 25 · Spring Boot 4.1 · Gradle 9 · PostgreSQL · Flyway · Spring JdbcClient · Resilience4j · Actuator/Micrometer · springdoc-openapi · JUnit 5 · Testcontainers · WireMock · ArchUnit · JaCoCo · Spotless
 
 Rationale for each choice: [`DECISIONS.md` → Stack](./DECISIONS.md#9-stack).
