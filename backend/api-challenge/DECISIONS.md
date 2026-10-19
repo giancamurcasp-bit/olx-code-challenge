@@ -113,6 +113,11 @@ There are no users in this version: ads have no author, and any client can see `
 
 **Why not now:** the brief doesn't mention users. Doing it properly (token validation, ownership checks and their tests) doesn't fit the time budget, and a partial version, such as an unauthenticated `author_id` field, would be misleading.
 
+**What the gap exposes today**, and what closes it:
+- **Personal data (LGPD):** ads rejected for `contact_info_not_allowed` are exactly the ones containing a phone number or a WhatsApp/Telegram handle. Moderation keeps that data out of the feed, but `GET /ads/{id}` and `?status=rejected` still show it to anyone. Closed by the ownership rules above, plus a retention period after which rejected content is deleted.
+- **Fraud:** unlimited posting plus a public, precise `rejection_reason` let anyone probe the moderation rules by trial and error until a variation passes. Closed by reasons visible only to the author, a rate limit per user on `POST /ads`, and flagging users with repeated rejections.
+- **Availability:** creating an ad is about 2,000× faster than moderating one (~5,500 creates/s vs ~2.4 ads/s, section 11), so a single client can fill the queue and make every seller wait hours. Closed by per-user rate limits and a cap on pending ads per author, then fair queueing between authors.
+
 ---
 
 ## 5. Validation: ours vs. moderation's
